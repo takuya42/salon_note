@@ -1,16 +1,50 @@
-# salon_note
+# SalonNote
 
-A new Flutter project.
+小規模サロン向け  
+予約・売上管理アプリ
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## 🧾 コンセプト
 
-A few resources to get you started if this is your first Flutter project:
+1人経営サロンのための  
+「シンプルで見やすい経営ダッシュボード」
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+ネイル・ヘッドスパ・ボディサロン・エステなど  
+予約制サロンに対応予定。
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+---
+
+## ✨ 主な機能（開発中）
+
+- 今日の売上表示
+- 今日の予約件数表示
+- ダッシュボードUI
+- 予約データ管理（予定）
+- 売上自動計算（予定）
+
+---
+
+## 🎯 ターゲット
+
+- 1〜2人で運営している小規模サロン
+- ITが苦手でも使える管理アプリを探している方
+- シンプルに売上を把握したい方
+
+---
+
+## 🛠 技術スタック
+
+- Flutter
+- Dart
+- Firebase（予定）
+- Git / GitHub
+
+---
+
+## 🚀 今後実装予定
+
+- 予約登録機能
+- 顧客管理機能
+- 月別売上グラフ
+- サブスクリプション機能（広告なしプラン）
