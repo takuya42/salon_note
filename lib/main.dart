@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'home/home_page.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'role_select/role_select_page.dart';
 
 void main() {
   runApp(const SalonNoteApp());
@@ -10,9 +11,25 @@ class SalonNoteApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: HomePage(),
+      title: 'SalonNote',
+
+      theme: ThemeData.light(),
+
+      locale: const Locale('ja'),
+
+      supportedLocales: const [
+        Locale('ja'),
+      ],
+
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+
+      home: const RoleSelectPage(),
     );
   }
 }
