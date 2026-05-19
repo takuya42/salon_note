@@ -1,0 +1,56 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "salon-note",
+          "appId": "1:30841251960:android:5e88d443b3c3fad5c5e58d",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "salon-note",
+          "appId": "1:30841251960:ios:ed2e444561242522c5e58d",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "salon-note",
+          "appId": "1:30841251960:ios:0650d32baeac79a6c5e58d",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "salon-note",
+          "configurations": {
+            "android": "1:30841251960:android:5e88d443b3c3fad5c5e58d",
+            "ios": "1:30841251960:ios:ed2e444561242522c5e58d",
+            "macos": "1:30841251960:ios:0650d32baeac79a6c5e58d",
+            "web": "1:30841251960:web:36c327b1962cfdbbc5e58d",
+            "windows": "1:30841251960:web:3a5ea4eadd595de4c5e58d"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "asia-northeast2",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": true
+    },
+    "singleProjectMode": true
+  }
+}

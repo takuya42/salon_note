@@ -7,6 +7,7 @@ import '../store/pages/reservation_page.dart';
 import '../customer/customer_booking_page.dart';
 import '../auth/pages/login_page.dart';
 import '../auth/pages/shop_create_page.dart';
+import '../ payment/pages/subscription_page.dart';
 
 const bool isDev = true;
 
@@ -55,25 +56,29 @@ class RoleSelectPage extends StatelessWidget {
       backgroundColor: Color(0xFFD8C2B9),
 
       appBar: AppBar(
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 14),
+            child: IconButton(
+              iconSize: 36,
+              icon: const Icon(Icons.workspace_premium),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SubscriptionPage(),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
         title: const Text("SalonNote"),
         backgroundColor: Color(0xFFD8C2B9),
         elevation: 0,
         foregroundColor: Colors.black,
 
-        leading: isDev
-            ? IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const LoginPage(),
-              ),
-                  (route) => false,
-            );
-          },
-        )
-            : null,
+
       ),
 
       body: Container(
