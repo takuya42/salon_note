@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../widgets/banner_ad_widget.dart';
 
 import '../providers/customer_provider.dart';
+import '../providers/repeat_kpi_provider.dart';
 import '../models/customer_model.dart';
 import '../pages/customer_detail_page.dart';
 
@@ -184,6 +185,7 @@ class _CustomerTabState extends ConsumerState<CustomerTab> {
   @override
   Widget build(BuildContext context) {
     final customers = ref.watch(customerProvider);
+    final kpiAsync = ref.watch(repeatKpiProvider);
 
     final filtered = customers.where((c) {
       return c.name
@@ -212,6 +214,14 @@ class _CustomerTabState extends ConsumerState<CustomerTab> {
 
         child: Column(
           children: [
+            kpiAsync.when(
+              data: (kpi) => _RepeatKpiSection(kpi: kpi),
+              loading: () => const Padding(
+                padding: EdgeInsets.only(bottom: 20),
+                child: LinearProgressIndicator(minHeight: 2),
+              ),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
 
             /// 検索
             TextField(
@@ -480,6 +490,130 @@ class _CustomerTabState extends ConsumerState<CustomerTab> {
               },
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RepeatKpiSection extends StatelessWidget {
+  const _RepeatKpiSection({required this.kpi});
+
+  final RepeatKpi kpi;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        children: [
+          Card(
+            elevation: 0,
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(color: primaryColor.withOpacity(0.25)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.autorenew_rounded, color: darkBrown),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "リピート率",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: darkBrown.withOpacity(0.7),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "${kpi.repeatRate.toStringAsFixed(0)}%",
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: darkBrown,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _MiniKpiCard(label: "新規顧客", value: "${kpi.newCustomerCount}人"),
+              _MiniKpiCard(label: "リピーター", value: "${kpi.repeaterCount}人"),
+              _MiniKpiCard(label: "失客数", value: "${kpi.lostCustomerCount}人"),
+              _MiniKpiCard(
+                label: "平均来店周期",
+                value: "${kpi.averageVisitCycleDays.toStringAsFixed(1)}日",
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniKpiCard extends StatelessWidget {
+  const _MiniKpiCard({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: (MediaQuery.sizeOf(context).width - 60) / 2,
+      child: Card(
+        elevation: 0,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: primaryColor.withOpacity(0.2)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: darkBrown.withOpacity(0.7),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                  color: darkBrown,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
