@@ -531,14 +531,29 @@ class _RepeatKpiSection extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          "リピート率",
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: darkBrown.withOpacity(0.7),
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "${DateTime.now().month}月リピート率",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: darkBrown.withOpacity(0.7),
+                              ),
+                            ),
+
+                            Text(
+                              "30日以内再来店",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: darkBrown.withOpacity(0.5),
+                              ),
+                            ),
+                          ],
                         ),
+
                         const SizedBox(height: 4),
+
                         Text(
                           "${kpi.repeatRate.toStringAsFixed(0)}%",
                           style: const TextStyle(
@@ -554,68 +569,11 @@ class _RepeatKpiSection extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _MiniKpiCard(label: "新規顧客", value: "${kpi.newCustomerCount}人"),
-              _MiniKpiCard(label: "リピーター", value: "${kpi.repeaterCount}人"),
-              _MiniKpiCard(label: "失客数", value: "${kpi.lostCustomerCount}人"),
-              _MiniKpiCard(
-                label: "平均来店周期",
-                value: "${kpi.averageVisitCycleDays.toStringAsFixed(1)}日",
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
 }
 
-class _MiniKpiCard extends StatelessWidget {
-  const _MiniKpiCard({required this.label, required this.value});
 
-  final String label;
-  final String value;
 
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: (MediaQuery.sizeOf(context).width - 60) / 2,
-      child: Card(
-        elevation: 0,
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: primaryColor.withOpacity(0.2)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: darkBrown.withOpacity(0.7),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                  color: darkBrown,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

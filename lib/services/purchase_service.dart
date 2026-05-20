@@ -7,7 +7,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 class PurchaseService {
   final InAppPurchase _iap = InAppPurchase.instance;
 
-  static const String productId = "pro_monthly";
+  static const String productId = "pro_monthly_v2";
 
   List<ProductDetails> _products = [];
   StreamSubscription<List<PurchaseDetails>>? _subscription;
