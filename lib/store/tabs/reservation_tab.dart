@@ -6,6 +6,7 @@ import '../providers/reservation_provider.dart';
 import '../providers/customer_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import '../../widgets/banner_ad_widget.dart';
 
 const primaryColor = Color(0xFFCBB8A9);
@@ -608,6 +609,10 @@ class _ReservationTabState extends ConsumerState<ReservationTab> {
                                     'end': end,
                                     'createdAt': FieldValue.serverTimestamp(),
                                   });
+
+                              await FirebaseAnalytics.instance.logEvent(
+                                name: 'reservation_created',
+                              );
 
                               ref.invalidate(reservationProvider);
 

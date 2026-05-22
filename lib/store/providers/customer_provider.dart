@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 import '../models/customer_model.dart';
 
@@ -63,6 +64,10 @@ class CustomerNotifier extends StateNotifier<List<Customer>> {
       'memo': '',
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+    await FirebaseAnalytics.instance.logEvent(
+      name: 'customer_added',
+    );
   }
 
   /// 🔥 追加（予約用）
@@ -85,6 +90,10 @@ class CustomerNotifier extends StateNotifier<List<Customer>> {
       'memo': '',
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+    await FirebaseAnalytics.instance.logEvent(
+      name: 'customer_added',
+    );
   }
 
   /// 🔥 削除
