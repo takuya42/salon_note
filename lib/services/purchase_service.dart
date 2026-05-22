@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 class PurchaseService {
   final InAppPurchase _iap = InAppPurchase.instance;
@@ -86,6 +87,10 @@ class PurchaseService {
             'plan': 'pro',
             'planUpdatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
+
+          await FirebaseAnalytics.instance.logEvent(
+            name: 'pro_plan_purchased',
+          );
 
           print("✅ Pro付与完了");
         }
