@@ -10,7 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
-import 'auth/pages/login_page.dart';
+import 'splash/splash_page.dart';
 import 'firebase_options.dart';
 
 void main() {
@@ -90,7 +90,7 @@ class SalonNoteApp extends StatelessWidget {
         ),
       ],
 
-      home: const LoginPage(),
+      home: const SplashPage(),
     );
   }
 }
