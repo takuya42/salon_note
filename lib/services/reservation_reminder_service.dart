@@ -17,9 +17,8 @@ class ReservationReminderService {
     /// タイムゾーン初期化
     tz.initializeTimeZones();
 
-    tz.setLocalLocation(
-      tz.getLocation('Asia/Tokyo'),
-    );
+    // 端末のローカルタイムゾーンを優先（iOS実機挙動に合わせる）
+    // ※必要ならflutter_native_timezone等で明示設定する
 
     /// iOS設定
     /// iOS設定
@@ -36,14 +35,12 @@ class ReservationReminderService {
     );
 
     /// 通知初期化
-    await _notifications.initialize(
-      settings: settings,
-    );
+    await _notifications.initialize(settings);
 
     /// iOS 通知許可
     await _notifications
         .resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>()
+            DarwinFlutterLocalNotificationsPlugin>()
         ?.requestPermissions(
       alert: true,
       badge: true,
@@ -72,8 +69,8 @@ class ReservationReminderService {
       reservationId,
     );
 
-    /// テスト用
-    final sameDayReminder = DateTime.now().add(
+    /// テスト用（本番では予約時刻から算出）
+    final sameDayReminder = start.subtract(
       const Duration(minutes: 10),
     );
 
@@ -82,13 +79,10 @@ class ReservationReminderService {
       iOS: DarwinNotificationDetails(),
     );
 
-    /// 即時通知テスト
-    await _notifications.show(
-      id: 999,
-      title: 'テスト通知',
-      body: '通知確認',
-      notificationDetails: details,
-    );
+    // 過去時刻はスキップ（iOSで即時発火や無効化を避ける）
+    if (!sameDayReminder.isAfter(DateTime.now())) {
+      return;
+    }
 
     /// 1分後通知
     await _notifications.zonedSchedule(
@@ -106,6 +100,9 @@ class ReservationReminderService {
       notificationDetails: details,
       androidScheduleMode:
       AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: null,
     );
   }
 
