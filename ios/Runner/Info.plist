@@ -116,5 +116,16 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>施術写真を保存するために使用します</string>
 
+	<!-- 🔥 通知許可 -->
+	<key>NSUserNotificationUsageDescription</key>
+	<string>予約通知を送信するために使用します</string>
+
+	<!-- 🔥 バックグラウンド通知 -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>processing</string>
+		<string>remote-notification</string>
+	</array>
+
 </dict>
 </plist>

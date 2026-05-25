@@ -4,6 +4,8 @@ import 'package:syncfusion_flutter_calendar/calendar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'package:salon_note/services/reservation_reminder_service.dart';
+
 final reservationProvider =
 StateNotifierProvider<ReservationNotifier, List<Appointment>>((ref) {
   return ReservationNotifier();
@@ -21,9 +23,8 @@ class ReservationNotifier extends StateNotifier<List<Appointment>> {
     return text.replaceAll(' ', '').split('').join('\n');
   }
 
-  /// 🔥 リアルタイム取得（エラーなし版）
+  /// 🔥 リアルタイム取得
   void listenReservations() {
-
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -31,22 +32,22 @@ class ReservationNotifier extends StateNotifier<List<Appointment>> {
         .collection('users')
         .doc(user.uid)
         .snapshots()
-        .asyncExpand<QuerySnapshot<Map<String, dynamic>>>((userDoc) {
+        .asyncExpand<QuerySnapshot<Map<String, dynamic>>>(
+            (userDoc) {
 
-      final shopId = userDoc.data()?['shopId'];
+          final shopId = userDoc.data()?['shopId'];
 
-      if (shopId == null) {
-        return const Stream.empty();
-      }
+          if (shopId == null) {
+            return const Stream.empty();
+          }
 
-      return _db
-          .collection('shops')
-          .doc(shopId)
-          .collection('reservations')
-          .orderBy('start')
-          .snapshots();
-
-    })
+          return _db
+              .collection('shops')
+              .doc(shopId)
+              .collection('reservations')
+              .orderBy('start')
+              .snapshots();
+        })
         .listen((snapshot) {
 
       state = snapshot.docs.map((doc) {
@@ -54,27 +55,38 @@ class ReservationNotifier extends StateNotifier<List<Appointment>> {
         final data = doc.data();
 
         return Appointment(
-          startTime: (data['start'] as Timestamp).toDate(),
-          endTime: (data['end'] as Timestamp).toDate(),
+          startTime:
+          (data['start'] as Timestamp).toDate(),
+
+          endTime:
+          (data['end'] as Timestamp).toDate(),
 
           /// 🔥 縦表示
-          subject: verticalText(data['name'] ?? ''),
+          subject: verticalText(
+            data['name'] ?? '',
+          ),
 
           /// 🔥 色
-          color: Color(data['color'] ?? Colors.orange.value),
+          color: Color(
+            data['color'] ??
+                Colors.orange.value,
+          ),
 
           /// 🔥 ID
           notes: doc.id,
         );
-
       }).toList();
     });
   }
 
   /// 🔥 追加
-  Future<void> add(Appointment appt) async {
+  Future<void> add(
+      Appointment appt,
+      ) async {
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user =
+        FirebaseAuth.instance.currentUser;
+
     if (user == null) return;
 
     final userDoc = await _db
@@ -82,26 +94,52 @@ class ReservationNotifier extends StateNotifier<List<Appointment>> {
         .doc(user.uid)
         .get();
 
-    final shopId = userDoc.data()?['shopId'];
+    final shopId =
+    userDoc.data()?['shopId'];
+
     if (shopId == null) return;
 
-    await _db
+    /// 🔥 Firestore保存
+    final docRef = await _db
         .collection('shops')
         .doc(shopId)
         .collection('reservations')
         .add({
-      'name': appt.subject.replaceAll('\n', ''),
+      'name':
+      appt.subject.replaceAll('\n', ''),
+
       'start': appt.startTime,
+
       'end': appt.endTime,
+
       'color': appt.color.value,
-      'createdAt': FieldValue.serverTimestamp(),
+
+      'createdAt':
+      FieldValue.serverTimestamp(),
     });
+
+    /// 🔥 通知登録
+    await ReservationReminderService
+        .scheduleReservationReminders(
+      reservationId: docRef.id,
+
+      customerName:
+      appt.subject.replaceAll('\n', ''),
+
+      menu: '予約',
+
+      start: appt.startTime,
+    );
   }
 
   /// 🔥 削除
-  Future<void> remove(Appointment appt) async {
+  Future<void> remove(
+      Appointment appt,
+      ) async {
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user =
+        FirebaseAuth.instance.currentUser;
+
     if (user == null) return;
 
     final userDoc = await _db
@@ -109,23 +147,37 @@ class ReservationNotifier extends StateNotifier<List<Appointment>> {
         .doc(user.uid)
         .get();
 
-    final shopId = userDoc.data()?['shopId'];
+    final shopId =
+    userDoc.data()?['shopId'];
+
     final id = appt.notes;
 
     if (shopId != null && id != null) {
+
+      /// 🔥 Firestore削除
       await _db
           .collection('shops')
           .doc(shopId)
           .collection('reservations')
           .doc(id)
           .delete();
+
+      /// 🔥 通知削除
+      await ReservationReminderService
+          .cancelReservationReminders(
+        id,
+      );
     }
   }
 
   /// 🔥 更新
-  Future<void> update(Appointment appt) async {
+  Future<void> update(
+      Appointment appt,
+      ) async {
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user =
+        FirebaseAuth.instance.currentUser;
+
     if (user == null) return;
 
     final userDoc = await _db
@@ -133,21 +185,42 @@ class ReservationNotifier extends StateNotifier<List<Appointment>> {
         .doc(user.uid)
         .get();
 
-    final shopId = userDoc.data()?['shopId'];
+    final shopId =
+    userDoc.data()?['shopId'];
+
     final id = appt.notes;
 
     if (shopId != null && id != null) {
+
+      /// 🔥 Firestore更新
       await _db
           .collection('shops')
           .doc(shopId)
           .collection('reservations')
           .doc(id)
           .update({
-        'name': appt.subject.replaceAll('\n', ''),
+        'name':
+        appt.subject.replaceAll('\n', ''),
+
         'start': appt.startTime,
+
         'end': appt.endTime,
+
         'color': appt.color.value,
       });
+
+      /// 🔥 通知再登録
+      await ReservationReminderService
+          .scheduleReservationReminders(
+        reservationId: id,
+
+        customerName:
+        appt.subject.replaceAll('\n', ''),
+
+        menu: '予約',
+
+        start: appt.startTime,
+      );
     }
   }
 }
