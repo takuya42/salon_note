@@ -12,7 +12,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 
 import 'splash/splash_page.dart';
 import 'firebase_options.dart';
-import 'services/reservation_reminder_service.dart';
+
 
 void main() {
   runZonedGuarded(() async {
@@ -39,8 +39,6 @@ void main() {
     /// 🔥 AdMob
     await MobileAds.instance.initialize();
 
-    /// 🔥 RevenueCat
-    await ReservationReminderService.initialize();
 
     await Purchases.configure(
       PurchasesConfiguration(
