@@ -7,7 +7,7 @@ class ReservationReminderService {
   ReservationReminderService._();
 
   static final FlutterLocalNotificationsPlugin _notifications =
-  FlutterLocalNotificationsPlugin();
+      FlutterLocalNotificationsPlugin();
 
   static bool _initialized = false;
 
@@ -29,9 +29,7 @@ class ReservationReminderService {
     await _configureLocalTimeZone();
 
     /// iOS設定
-    /// iOS設定
-    const iosSettings =
-    DarwinInitializationSettings(
+    const iosSettings = DarwinInitializationSettings(
       defaultPresentAlert: true,
       defaultPresentBadge: true,
       defaultPresentSound: true,
@@ -43,12 +41,14 @@ class ReservationReminderService {
     );
 
     /// 通知初期化
-    await _notifications.initialize(settings);
+    await _notifications.initialize(
+      settings,
+    );
 
     /// iOS 通知許可
     final iosPlugin = _notifications
         .resolvePlatformSpecificImplementation<
-            DarwinFlutterLocalNotificationsPlugin>();
+            IOSFlutterLocalNotificationsPlugin>();
 
     final granted = await iosPlugin?.requestPermissions(
       alert: true,
@@ -108,14 +108,12 @@ class ReservationReminderService {
       ),
       title: '本日の予約リマインド',
       body:
-      '$customerName様（$menu） '
+          '$customerName様（$menu） '
           'まもなく予約時間です',
       scheduledDate: scheduledAt,
       notificationDetails: details,
       androidScheduleMode:
-      AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
+          AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: null,
     );
   }
