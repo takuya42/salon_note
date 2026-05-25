@@ -8,7 +8,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import '../../widgets/banner_ad_widget.dart';
-import '../../services/reservation_reminder_service.dart';
 
 const primaryColor = Color(0xFFCBB8A9);
 const darkBrown = Color(0xFF4E3B31);
@@ -595,7 +594,7 @@ class _ReservationTabState extends ConsumerState<ReservationTab> {
                                 return;
                               }
 
-                              final newReservation = await FirebaseFirestore.instance
+                              await FirebaseFirestore.instance
                                   .collection('shops')
                                   .doc(shopId)
                                   .collection('reservations')
@@ -611,12 +610,6 @@ class _ReservationTabState extends ConsumerState<ReservationTab> {
                                     'createdAt': FieldValue.serverTimestamp(),
                                   });
 
-                              await ReservationReminderService.scheduleReservationReminders(
-                                reservationId: newReservation.id,
-                                customerName: nameController.text,
-                                menu: finalMenu,
-                                start: start,
-                              );
 
                               await FirebaseAnalytics.instance.logEvent(
                                 name: 'reservation_created',
@@ -889,14 +882,6 @@ class _ReservationTabState extends ConsumerState<ReservationTab> {
                             'end': end,
                           });
 
-                      if (appt.notes != null) {
-                        await ReservationReminderService.scheduleReservationReminders(
-                          reservationId: appt.notes!,
-                          customerName: nameController.text,
-                          menu: finalMenu,
-                          start: start,
-                        );
-                      }
 
                       Navigator.pop(context);
                     },
@@ -936,12 +921,6 @@ class _ReservationTabState extends ConsumerState<ReservationTab> {
                             .collection('reservations')
                             .doc(appt.notes)
                             .delete();
-
-                        if (appt.notes != null) {
-                          await ReservationReminderService.cancelReservationReminders(
-                            appt.notes!,
-                          );
-                        }
 
                         Navigator.pop(context);
                       }

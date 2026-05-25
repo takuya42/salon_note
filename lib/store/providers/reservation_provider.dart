@@ -4,7 +4,6 @@ import 'package:syncfusion_flutter_calendar/calendar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:salon_note/services/reservation_reminder_service.dart';
 
 final reservationProvider =
 StateNotifierProvider<ReservationNotifier, List<Appointment>>((ref) {
@@ -100,7 +99,7 @@ class ReservationNotifier extends StateNotifier<List<Appointment>> {
     if (shopId == null) return;
 
     /// 🔥 Firestore保存
-    final docRef = await _db
+    await _db
         .collection('shops')
         .doc(shopId)
         .collection('reservations')
@@ -118,18 +117,6 @@ class ReservationNotifier extends StateNotifier<List<Appointment>> {
       FieldValue.serverTimestamp(),
     });
 
-    /// 🔥 通知登録
-    await ReservationReminderService
-        .scheduleReservationReminders(
-      reservationId: docRef.id,
-
-      customerName:
-      appt.subject.replaceAll('\n', ''),
-
-      menu: '予約',
-
-      start: appt.startTime,
-    );
   }
 
   /// 🔥 削除
@@ -162,11 +149,6 @@ class ReservationNotifier extends StateNotifier<List<Appointment>> {
           .doc(id)
           .delete();
 
-      /// 🔥 通知削除
-      await ReservationReminderService
-          .cancelReservationReminders(
-        id,
-      );
     }
   }
 
@@ -209,18 +191,6 @@ class ReservationNotifier extends StateNotifier<List<Appointment>> {
         'color': appt.color.value,
       });
 
-      /// 🔥 通知再登録
-      await ReservationReminderService
-          .scheduleReservationReminders(
-        reservationId: id,
-
-        customerName:
-        appt.subject.replaceAll('\n', ''),
-
-        menu: '予約',
-
-        start: appt.startTime,
-      );
     }
   }
 }

@@ -116,7 +116,5 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>施術写真を保存するために使用します</string>
 
-	<!-- ローカル通知は権限ダイアログ文言をInfo.plistに持たない（iOS側で固定文言） -->
-
 </dict>
 </plist>
