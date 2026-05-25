@@ -108,14 +108,12 @@ class ReservationReminderService {
       ),
       title: '本日の予約リマインド',
       body:
-      '$customerName様（$menu） '
+          '$customerName様（$menu） '
           'まもなく予約時間です',
       scheduledDate: scheduledAt,
       notificationDetails: details,
       androidScheduleMode:
-      AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
+          AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: null,
     );
   }
