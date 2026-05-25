@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -10,16 +11,22 @@ class ReservationReminderService {
 
   static bool _initialized = false;
 
+  static Future<void> _configureLocalTimeZone() async {
+    tz.initializeTimeZones();
+
+    try {
+      final timeZoneName = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+    } catch (_) {
+      // フォールバック: 取得失敗時はUTCのまま動作
+    }
+  }
+
   /// 初期化
   static Future<void> initialize() async {
     if (_initialized) return;
 
-    /// タイムゾーン初期化
-    tz.initializeTimeZones();
-
-    tz.setLocalLocation(
-      tz.getLocation('Asia/Tokyo'),
-    );
+    await _configureLocalTimeZone();
 
     /// iOS設定
     /// iOS設定
@@ -36,19 +43,23 @@ class ReservationReminderService {
     );
 
     /// 通知初期化
-    await _notifications.initialize(
-      settings: settings,
-    );
+    await _notifications.initialize(settings);
 
     /// iOS 通知許可
-    await _notifications
+    final iosPlugin = _notifications
         .resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(
+            DarwinFlutterLocalNotificationsPlugin>();
+
+    final granted = await iosPlugin?.requestPermissions(
       alert: true,
       badge: true,
       sound: true,
     );
+
+    if (granted == false) {
+      _initialized = true;
+      return;
+    }
 
     _initialized = true;
   }
@@ -72,8 +83,7 @@ class ReservationReminderService {
       reservationId,
     );
 
-    /// テスト用
-    final sameDayReminder = DateTime.now().add(
+    final sameDayReminder = start.subtract(
       const Duration(minutes: 10),
     );
 
@@ -82,15 +92,16 @@ class ReservationReminderService {
       iOS: DarwinNotificationDetails(),
     );
 
-    /// 即時通知テスト
-    await _notifications.show(
-      id: 999,
-      title: 'テスト通知',
-      body: '通知確認',
-      notificationDetails: details,
+    // 過去時刻はスキップ（iOSで即時発火や無効化を避ける）
+    if (!sameDayReminder.isAfter(DateTime.now())) {
+      return;
+    }
+
+    final scheduledAt = tz.TZDateTime.from(
+      sameDayReminder,
+      tz.local,
     );
 
-    /// 1分後通知
     await _notifications.zonedSchedule(
       id: _idFromKey(
         '${reservationId}_same_day',
@@ -99,13 +110,13 @@ class ReservationReminderService {
       body:
       '$customerName様（$menu） '
           'まもなく予約時間です',
-      scheduledDate: tz.TZDateTime.from(
-        sameDayReminder,
-        tz.local,
-      ),
+      scheduledDate: scheduledAt,
       notificationDetails: details,
       androidScheduleMode:
       AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: null,
     );
   }
 
