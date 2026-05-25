@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -10,15 +11,22 @@ class ReservationReminderService {
 
   static bool _initialized = false;
 
+  static Future<void> _configureLocalTimeZone() async {
+    tz.initializeTimeZones();
+
+    try {
+      final timeZoneName = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+    } catch (_) {
+      // フォールバック: 取得失敗時はUTCのまま動作
+    }
+  }
+
   /// 初期化
   static Future<void> initialize() async {
     if (_initialized) return;
 
-    /// タイムゾーン初期化
-    tz.initializeTimeZones();
-
-    // 端末のローカルタイムゾーンを優先（iOS実機挙動に合わせる）
-    // ※必要ならflutter_native_timezone等で明示設定する
+    await _configureLocalTimeZone();
 
     /// iOS設定
     /// iOS設定
@@ -38,14 +46,20 @@ class ReservationReminderService {
     await _notifications.initialize(settings);
 
     /// iOS 通知許可
-    await _notifications
+    final iosPlugin = _notifications
         .resolvePlatformSpecificImplementation<
-            DarwinFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(
+            DarwinFlutterLocalNotificationsPlugin>();
+
+    final granted = await iosPlugin?.requestPermissions(
       alert: true,
       badge: true,
       sound: true,
     );
+
+    if (granted == false) {
+      _initialized = true;
+      return;
+    }
 
     _initialized = true;
   }
@@ -69,7 +83,6 @@ class ReservationReminderService {
       reservationId,
     );
 
-    /// テスト用（本番では予約時刻から算出）
     final sameDayReminder = start.subtract(
       const Duration(minutes: 10),
     );
@@ -84,7 +97,11 @@ class ReservationReminderService {
       return;
     }
 
-    /// 1分後通知
+    final scheduledAt = tz.TZDateTime.from(
+      sameDayReminder,
+      tz.local,
+    );
+
     await _notifications.zonedSchedule(
       id: _idFromKey(
         '${reservationId}_same_day',
@@ -93,10 +110,7 @@ class ReservationReminderService {
       body:
       '$customerName様（$menu） '
           'まもなく予約時間です',
-      scheduledDate: tz.TZDateTime.from(
-        sameDayReminder,
-        tz.local,
-      ),
+      scheduledDate: scheduledAt,
       notificationDetails: details,
       androidScheduleMode:
       AndroidScheduleMode.exactAllowWhileIdle,
