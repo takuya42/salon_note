@@ -8,14 +8,13 @@ import '../web_route_paths.dart';
 import '../widgets/web_design_widgets.dart';
 
 class WebBookingPage extends ConsumerWidget {
-  const WebBookingPage({super.key, required this.shopId});
+  const WebBookingPage({super.key, required this.shopName});
 
-  final String shopId;
+  final String shopName;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final shopAsync = ref.watch(webShopProvider(shopId));
-    final menusAsync = ref.watch(webMenusProvider(shopId));
+    final shopAsync = ref.watch(webShopProvider(shopName));
     final bookingState = ref.watch(webBookingProvider);
     final bookingController = ref.read(webBookingProvider.notifier);
 
@@ -36,17 +35,27 @@ class WebBookingPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, WebRoutePaths.shop(shopId)),
+                  onPressed: () => Navigator.pushNamed(
+                    context,
+                    WebRoutePaths.shop(shop.shopName),
+                  ),
                   icon: const Icon(Icons.arrow_back),
                   label: const Text('店舗ページへ戻る'),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   '${shop.shopName} の予約',
-                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: webBlack),
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: webBlack,
+                  ),
                 ),
                 const SizedBox(height: 8),
-                const Text('必要事項を入力して予約を送信してください。', style: TextStyle(color: webMuted)),
+                const Text(
+                  '必要事項を入力して予約を送信してください。',
+                  style: TextStyle(color: webMuted),
+                ),
                 const SizedBox(height: 24),
                 WebCard(
                   child: Column(
@@ -64,12 +73,14 @@ class WebBookingPage extends ConsumerWidget {
                         onChanged: bookingController.setCustomerPhone,
                       ),
                       const SizedBox(height: 16),
-                      menusAsync.when(
+                      ref.watch(webMenusProvider(shop.shopId)).when(
                         data: (menus) => _MenuDropdown(
                           menus: menus,
                           selectedMenuId: bookingState.menuId,
                           onChanged: (value) {
-                            if (value != null) bookingController.setMenuId(value);
+                            if (value != null) {
+                              bookingController.setMenuId(value);
+                            }
                           },
                         ),
                         loading: () => const CircularProgressIndicator(),
@@ -82,7 +93,10 @@ class WebBookingPage extends ConsumerWidget {
                       ),
                       if (bookingState.errorMessage != null) ...[
                         const SizedBox(height: 14),
-                        Text(bookingState.errorMessage!, style: const TextStyle(color: Colors.red)),
+                        Text(
+                          bookingState.errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
                       ],
                       const SizedBox(height: 22),
                       WebPrimaryButton(
@@ -90,10 +104,13 @@ class WebBookingPage extends ConsumerWidget {
                         isLoading: bookingState.isSubmitting,
                         onPressed: bookingState.canSubmit
                             ? () async {
-                                final reservationId = await bookingController.submit(shopId);
-                                if (reservationId == null || !context.mounted) return;
+                                final reservationId =
+                                    await bookingController.submit(shop.shopId);
+                                if (reservationId == null || !context.mounted) {
+                                  return;
+                                }
                                 final query = Uri(queryParameters: {
-                                  'shopId': shopId,
+                                  'shopName': shop.shopName,
                                   'reservationId': reservationId,
                                   'reservationDateTime': bookingState
                                       .reservationDateTime!
@@ -115,7 +132,8 @@ class WebBookingPage extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const Center(child: Text('予約ページの読み込みに失敗しました。')),
+        error: (_, __) =>
+            const Center(child: Text('予約ページの読み込みに失敗しました。')),
       ),
     );
   }

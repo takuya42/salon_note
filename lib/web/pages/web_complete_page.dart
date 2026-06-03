@@ -7,11 +7,11 @@ import '../widgets/web_design_widgets.dart';
 class WebCompletePage extends ConsumerWidget {
   const WebCompletePage({
     super.key,
-    this.shopId,
+    this.shopName,
     this.reservationDateTime,
   });
 
-  final String? shopId;
+  final String? shopName;
   final DateTime? reservationDateTime;
 
   String _formatDateTime(DateTime value) {
@@ -24,7 +24,8 @@ class WebCompletePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final shopAsync = shopId == null ? null : ref.watch(webShopProvider(shopId!));
+    final shopAsync =
+        shopName == null ? null : ref.watch(webShopProvider(shopName!));
 
     return WebPageShell(
       child: Padding(
@@ -34,7 +35,11 @@ class WebCompletePage extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.check_circle_outline, size: 72, color: webBlack),
+                const Icon(
+                  Icons.check_circle_outline,
+                  size: 72,
+                  color: webBlack,
+                ),
                 const SizedBox(height: 20),
                 const Text(
                   '予約ありがとうございます',
@@ -50,9 +55,13 @@ class WebCompletePage extends ConsumerWidget {
                 const SizedBox(height: 24),
                 if (shopAsync != null)
                   shopAsync.when(
-                    data: (shop) => _CompleteRow(label: '店舗名', value: shop?.shopName ?? '-'),
+                    data: (shop) => _CompleteRow(
+                      label: '店舗名',
+                      value: shop?.shopName ?? '-',
+                    ),
                     loading: () => const CircularProgressIndicator(),
-                    error: (_, __) => const _CompleteRow(label: '店舗名', value: '-'),
+                    error: (_, __) =>
+                        const _CompleteRow(label: '店舗名', value: '-'),
                   ),
                 _CompleteRow(
                   label: '予約日時',
@@ -63,7 +72,11 @@ class WebCompletePage extends ConsumerWidget {
                 const SizedBox(height: 24),
                 WebPrimaryButton(
                   label: 'トップへ戻る',
-                  onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false),
+                  onPressed: () => Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/',
+                    (_) => false,
+                  ),
                 ),
               ],
             ),

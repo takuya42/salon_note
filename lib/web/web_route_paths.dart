@@ -5,12 +5,14 @@ class WebRoutePaths {
   static const shopSegment = 'shop';
   static const bookingSegment = 'booking';
 
-  static String shop(String shopId) => '/$shopSegment/$shopId';
+  static String shop(String shopName) =>
+      '/$shopSegment/${Uri.encodeComponent(shopName)}';
 
-  static String booking(String shopId) => '/$bookingSegment/$shopId';
+  static String booking(String shopName) =>
+      '/$bookingSegment/${Uri.encodeComponent(shopName)}';
 
-  static Uri canonicalShopUri(String shopId) => Uri.https(
+  static Uri canonicalShopUri(String shopName) => Uri.https(
         reserveHost,
-        shop(shopId),
-      );
+        '',
+      ).replace(pathSegments: [shopSegment, shopName]);
 }

@@ -8,10 +8,12 @@ final webShopServiceProvider = Provider<WebShopService>((ref) {
   return WebShopService();
 });
 
-final webShopProvider = StreamProvider.autoDispose.family<WebShop?, String>((ref, shopId) {
-  return ref.watch(webShopServiceProvider).watchShop(shopId);
+final webShopProvider =
+    StreamProvider.autoDispose.family<WebShop?, String>((ref, shopName) {
+  return ref.watch(webShopServiceProvider).watchShop(shopName);
 });
 
-final webMenusProvider = StreamProvider.autoDispose.family<List<WebMenu>, String>((ref, shopId) {
+final webMenusProvider =
+    StreamProvider.autoDispose.family<List<WebMenu>, String>((ref, shopId) {
   return ref.watch(webShopServiceProvider).watchMenus(shopId);
 });
