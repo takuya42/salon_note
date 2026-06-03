@@ -23,19 +23,21 @@ class WebRouter {
       return _material(settings, const WebHomePage());
     }
 
-    if (uri.pathSegments.length == 2 && uri.pathSegments.first == WebRoutePaths.shopSegment) {
-      return _material(settings, WebShopPage(shopId: uri.pathSegments[1]));
+    if (uri.pathSegments.length == 2 &&
+        uri.pathSegments.first == WebRoutePaths.shopSegment) {
+      return _material(settings, WebShopPage(shopName: uri.pathSegments[1]));
     }
 
-    if (uri.pathSegments.length == 2 && uri.pathSegments.first == WebRoutePaths.bookingSegment) {
-      return _material(settings, WebBookingPage(shopId: uri.pathSegments[1]));
+    if (uri.pathSegments.length == 2 &&
+        uri.pathSegments.first == WebRoutePaths.bookingSegment) {
+      return _material(settings, WebBookingPage(shopName: uri.pathSegments[1]));
     }
 
     if (uri.path == '/complete') {
       return _material(
         settings,
         WebCompletePage(
-          shopId: uri.queryParameters['shopId'],
+          shopName: uri.queryParameters['shopName'],
           reservationDateTime: DateTime.tryParse(
             uri.queryParameters['reservationDateTime'] ?? '',
           ),
@@ -50,7 +52,10 @@ class WebRouter {
     return _material(settings, const WebNotFoundPage());
   }
 
-  static MaterialPageRoute<dynamic> _material(RouteSettings settings, Widget page) {
+  static MaterialPageRoute<dynamic> _material(
+    RouteSettings settings,
+    Widget page,
+  ) {
     return MaterialPageRoute<dynamic>(settings: settings, builder: (_) => page);
   }
 }

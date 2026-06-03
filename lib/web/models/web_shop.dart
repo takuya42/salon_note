@@ -37,7 +37,7 @@ class WebShop {
     final data = snapshot.data() ?? <String, dynamic>{};
     return WebShop(
       shopId: (data['shopId'] as String?) ?? snapshot.id,
-      shopName: (data['shopName'] as String?) ?? (data['name'] as String?) ?? '',
+      shopName: (data['name'] as String?) ?? (data['shopName'] as String?) ?? '',
       description: (data['description'] as String?) ?? '',
       phone: (data['phone'] as String?) ?? '',
       imageUrl: (data['imageUrl'] as String?) ?? '',

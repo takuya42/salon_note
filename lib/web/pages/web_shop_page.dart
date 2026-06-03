@@ -7,21 +7,19 @@ import '../web_route_paths.dart';
 import '../widgets/web_design_widgets.dart';
 
 class WebShopPage extends ConsumerWidget {
-  const WebShopPage({super.key, required this.shopId});
+  const WebShopPage({super.key, required this.shopName});
 
-  final String shopId;
+  final String shopName;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final shopAsync = ref.watch(webShopProvider(shopId));
-    final menusAsync = ref.watch(webMenusProvider(shopId));
-
+    final shopAsync = ref.watch(webShopProvider(shopName));
 
     return WebPageShell(
       child: shopAsync.when(
         data: (shop) {
           if (shop == null || !shop.isWebPublished) {
-            return _NotFoundContent(shopId: shopId);
+            return const _NotFoundContent();
           }
 
           return CustomScrollView(
@@ -77,7 +75,7 @@ class WebShopPage extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    menusAsync.when(
+                    ref.watch(webMenusProvider(shop.shopId)).when(
                       data: (menus) => _MenuList(menus: menus),
                       loading: () =>
                           const Center(child: CircularProgressIndicator()),
@@ -89,7 +87,7 @@ class WebShopPage extends ConsumerWidget {
                         label: 'このサロンを予約する',
                         onPressed: () => Navigator.pushNamed(
                           context,
-                          WebRoutePaths.booking(shopId),
+                          WebRoutePaths.booking(shop.shopName),
                         ),
                       )
                     else
@@ -221,9 +219,7 @@ class _MenuList extends StatelessWidget {
 }
 
 class _NotFoundContent extends StatelessWidget {
-  const _NotFoundContent({required this.shopId});
-
-  final String shopId;
+  const _NotFoundContent();
 
   @override
   Widget build(BuildContext context) {
@@ -236,7 +232,10 @@ class _NotFoundContent extends StatelessWidget {
             children: [
               const Icon(Icons.search_off, size: 48, color: webMuted),
               const SizedBox(height: 16),
-              Text('店舗「$shopId」が見つかりません'),
+              const Text(
+                'サロンが見つかりません\n店舗名をご確認ください',
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 16),
               WebPrimaryButton(
                 label: 'トップへ戻る',

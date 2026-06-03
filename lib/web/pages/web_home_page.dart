@@ -11,24 +11,24 @@ class WebHomePage extends StatefulWidget {
 }
 
 class _WebHomePageState extends State<WebHomePage> {
-  final _shopIdController = TextEditingController();
+  final _shopNameController = TextEditingController();
 
   @override
   void dispose() {
-    _shopIdController.dispose();
+    _shopNameController.dispose();
     super.dispose();
   }
 
   void _openShop() {
-    final shopId = _shopIdController.text.trim();
+    final shopName = _shopNameController.text.trim();
 
-    if (shopId.isEmpty) {
+    if (shopName.isEmpty) {
       return;
     }
 
     Navigator.pushNamed(
       context,
-      WebRoutePaths.shop(shopId),
+      WebRoutePaths.shop(shopName),
     );
   }
 
@@ -71,7 +71,7 @@ class _WebHomePageState extends State<WebHomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        '店舗IDを入力',
+                        '店舗名を入力',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -80,9 +80,9 @@ class _WebHomePageState extends State<WebHomePage> {
                       ),
                       const SizedBox(height: 12),
                       TextField(
-                        controller: _shopIdController,
+                        controller: _shopNameController,
                         decoration: InputDecoration(
-                          hintText: '店舗IDを入力',
+                          hintText: '例: テスト',
                           filled: true,
                           fillColor: webLightBeige,
                           border: OutlineInputBorder(
@@ -94,7 +94,7 @@ class _WebHomePageState extends State<WebHomePage> {
                       ),
                       const SizedBox(height: 20),
                       WebPrimaryButton(
-                        label: '予約ページを開く',
+                        label: '店舗ページを見る',
                         onPressed: _openShop,
                       ),
                     ],
