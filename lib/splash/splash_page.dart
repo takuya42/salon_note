@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:salon_note/auth/pages/login_page.dart';
 import 'package:salon_note/services/force_update_service.dart';
@@ -19,11 +20,15 @@ class _SplashPageState extends State<SplashPage> {
   }
 
   Future<void> _initialize() async {
-    final needsUpdate = await _forceUpdateService.shouldForceUpdate();
-
-    if (!mounted) {
+    /// Webは強制アップデートをスキップ
+    if (kIsWeb) {
+      _goToLogin();
       return;
     }
+
+    final needsUpdate = await _forceUpdateService.shouldForceUpdate();
+
+    if (!mounted) return;
 
     if (needsUpdate) {
       _showForceUpdateDialog();
@@ -49,44 +54,16 @@ class _SplashPageState extends State<SplashPage> {
         return WillPopScope(
           onWillPop: () async => false,
           child: AlertDialog(
-            backgroundColor: const Color(0xFFF2E6E2),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: const Text(
-              'アップデートのお知らせ',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF4A3C38),
-              ),
-            ),
+            title: const Text('アップデートのお知らせ'),
             content: const Text(
               'このバージョンはご利用いただけません。\n最新バージョンへアップデートしてください。',
-              style: TextStyle(
-                color: Color(0xFF4A3C38),
-                height: 1.5,
-              ),
             ),
             actions: [
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD8C2B9),
-                    foregroundColor: const Color(0xFF4A3C38),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  onPressed: () {
-                    _forceUpdateService.openStore();
-                  },
-                  child: const Text(
-                    'アップデート',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
+              ElevatedButton(
+                onPressed: () {
+                  _forceUpdateService.openStore();
+                },
+                child: const Text('アップデート'),
               ),
             ],
           ),
