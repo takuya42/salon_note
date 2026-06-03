@@ -9,17 +9,33 @@ class WebShopService {
 
   final FirebaseFirestore _firestore;
 
-  Stream<WebShop?> watchShop(String shopId) {
-    return _firestore.collection('shops').doc(shopId).snapshots().map((snapshot) {
-      if (!snapshot.exists) return null;
-      return WebShop.fromFirestore(snapshot);
+  Stream<WebShop?> watchShop(String shopName) {
+    return _firestore
+        .collection('shops')
+        .where('name', isEqualTo: shopName)
+        .limit(1)
+        .snapshots()
+        .map((snapshot) {
+      if (snapshot.docs.isEmpty) {
+        return null;
+      }
+
+      return WebShop.fromFirestore(snapshot.docs.first);
     });
   }
 
-  Future<WebShop?> fetchShop(String shopId) async {
-    final snapshot = await _firestore.collection('shops').doc(shopId).get();
-    if (!snapshot.exists) return null;
-    return WebShop.fromFirestore(snapshot);
+  Future<WebShop?> fetchShop(String shopName) async {
+    final snapshot = await _firestore
+        .collection('shops')
+        .where('name', isEqualTo: shopName)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      return null;
+    }
+
+    return WebShop.fromFirestore(snapshot.docs.first);
   }
 
   Stream<List<WebMenu>> watchMenus(String shopId) {
@@ -30,6 +46,6 @@ class WebShopService {
         .snapshots()
         .map(
           (snapshot) => snapshot.docs.map(WebMenu.fromFirestore).toList(),
-        );
+    );
   }
 }

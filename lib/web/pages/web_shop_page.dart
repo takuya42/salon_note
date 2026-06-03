@@ -16,6 +16,7 @@ class WebShopPage extends ConsumerWidget {
     final shopAsync = ref.watch(webShopProvider(shopId));
     final menusAsync = ref.watch(webMenusProvider(shopId));
 
+
     return WebPageShell(
       child: shopAsync.when(
         data: (shop) {
@@ -25,9 +26,7 @@ class WebShopPage extends ConsumerWidget {
 
           return CustomScrollView(
             slivers: [
-              SliverToBoxAdapter(
-                child: _HeroImage(imageUrl: shop.imageUrl),
-              ),
+              SliverToBoxAdapter(child: _HeroImage(imageUrl: shop.imageUrl)),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
                 sliver: SliverList.list(
@@ -55,11 +54,15 @@ class WebShopPage extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Information', style: TextStyle(fontWeight: FontWeight.bold)),
+                          const Text(
+                            'Information',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           const SizedBox(height: 12),
                           if (shop.businessHours.isNotEmpty)
                             _InfoRow(label: '営業時間', value: shop.businessHours),
-                          if (shop.phone.isNotEmpty) _InfoRow(label: '電話番号', value: shop.phone),
+                          if (shop.phone.isNotEmpty)
+                            _InfoRow(label: '電話番号', value: shop.phone),
                           _InfoRow(label: '店舗ID', value: shop.shopId),
                         ],
                       ),
@@ -76,14 +79,18 @@ class WebShopPage extends ConsumerWidget {
                     const SizedBox(height: 12),
                     menusAsync.when(
                       data: (menus) => _MenuList(menus: menus),
-                      loading: () => const Center(child: CircularProgressIndicator()),
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
                       error: (_, __) => const Text('メニューの読み込みに失敗しました。'),
                     ),
                     const SizedBox(height: 24),
                     if (shop.isWebBookingEnabled)
                       WebPrimaryButton(
                         label: 'このサロンを予約する',
-                        onPressed: () => Navigator.pushNamed(context, WebRoutePaths.booking(shopId)),
+                        onPressed: () => Navigator.pushNamed(
+                          context,
+                          WebRoutePaths.booking(shopId),
+                        ),
                       )
                     else
                       const WebCard(child: Text('現在Web予約の受付を停止しています。')),
@@ -94,7 +101,9 @@ class WebShopPage extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const Center(child: Text('店舗情報の読み込みに失敗しました。')),
+        error: (_, __) => const Center(
+          child: Text('店舗情報の読み込みに失敗しました。'),
+        ),
       ),
     );
   }
@@ -144,7 +153,9 @@ class _InfoRow extends StatelessWidget {
             width: 86,
             child: Text(label, style: const TextStyle(color: webMuted)),
           ),
-          Expanded(child: Text(value, style: const TextStyle(color: webBlack))),
+          Expanded(
+            child: Text(value, style: const TextStyle(color: webBlack)),
+          ),
         ],
       ),
     );
@@ -176,17 +187,29 @@ class _MenuList extends StatelessWidget {
                     Expanded(
                       child: Text(
                         menu.name,
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    Text('¥${menu.price}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      '¥${menu.price}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text('${menu.duration}分', style: const TextStyle(color: webMuted)),
+                Text(
+                  '${menu.duration}分',
+                  style: const TextStyle(color: webMuted),
+                ),
                 if (menu.description.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Text(menu.description, style: const TextStyle(color: webMuted, height: 1.6)),
+                  Text(
+                    menu.description,
+                    style: const TextStyle(color: webMuted, height: 1.6),
+                  ),
                 ],
               ],
             ),
@@ -217,7 +240,11 @@ class _NotFoundContent extends StatelessWidget {
               const SizedBox(height: 16),
               WebPrimaryButton(
                 label: 'トップへ戻る',
-                onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false),
+                onPressed: () => Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/',
+                  (_) => false,
+                ),
               ),
             ],
           ),
