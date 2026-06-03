@@ -22,8 +22,12 @@ class WebBookingPage extends ConsumerWidget {
     return WebPageShell(
       child: shopAsync.when(
         data: (shop) {
-          if (shop == null) {
+          if (shop == null || !shop.isWebPublished) {
             return const Center(child: Text('店舗が見つかりません。'));
+          }
+
+          if (!shop.isWebBookingEnabled) {
+            return const Center(child: Text('現在Web予約の受付を停止しています。'));
           }
 
           return SingleChildScrollView(

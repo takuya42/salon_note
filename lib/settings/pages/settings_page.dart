@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:salon_note/settings/pages/business_setting_page.dart';
 import 'package:salon_note/settings/pages/menu_page.dart';
+import 'package:salon_note/settings/pages/web_setting_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -111,6 +112,20 @@ class _SettingsPageState extends State<SettingsPage> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => const MenuPage(),
+                ),
+              );
+            },
+          ),
+
+          _settingCard(
+            icon: Icons.public,
+            title: "Web公開設定",
+            subtitle: "公開ページ・Web予約の受付を設定",
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const WebSettingPage(),
                 ),
               );
             },
