@@ -47,6 +47,12 @@ class _ShopCreatePageState extends State<ShopCreatePage> {
         'name': name,
         'ownerId': user.uid,
         'ownerEmail': user.email,
+        'planType': 'free',
+        'webEnabled': false,
+        'webDescription': '',
+        'webImageUrl': '',
+        'instagramUrl': '',
+        'lineUrl': '',
         'createdAt': Timestamp.now(),
       });
       /// ユーザー紐付け
