@@ -19,7 +19,7 @@ class WebShopPage extends ConsumerWidget {
     return WebPageShell(
       child: shopAsync.when(
         data: (shop) {
-          if (shop == null) {
+          if (shop == null || !shop.isWebPublished) {
             return _NotFoundContent(shopId: shopId);
           }
 
@@ -80,10 +80,13 @@ class WebShopPage extends ConsumerWidget {
                       error: (_, __) => const Text('メニューの読み込みに失敗しました。'),
                     ),
                     const SizedBox(height: 24),
-                    WebPrimaryButton(
-                      label: 'このサロンを予約する',
-                      onPressed: () => Navigator.pushNamed(context, WebRoutePaths.booking(shopId)),
-                    ),
+                    if (shop.isWebBookingEnabled)
+                      WebPrimaryButton(
+                        label: 'このサロンを予約する',
+                        onPressed: () => Navigator.pushNamed(context, WebRoutePaths.booking(shopId)),
+                      )
+                    else
+                      const WebCard(child: Text('現在Web予約の受付を停止しています。')),
                   ],
                 ),
               ),

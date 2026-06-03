@@ -24,6 +24,8 @@ service cloud.firestore {
         'ownerId',
         'ownerEmail',
         'planType',
+        'isWebPublished',
+        'isWebBookingEnabled',
         'createdAt',
         'updatedAt'
       ]);
@@ -57,6 +59,12 @@ service cloud.firestore {
       ]);
     }
 
+    function isShopWebBookingEnabled(shopId) {
+      return exists(/databases/$(database)/documents/shops/$(shopId))
+        && get(/databases/$(database)/documents/shops/$(shopId)).data.isWebPublished == true
+        && get(/databases/$(database)/documents/shops/$(shopId)).data.isWebBookingEnabled == true;
+    }
+
     function isValidReservationCreate() {
       return hasOnlyReservationFields()
         && request.resource.data.shopId is string
@@ -66,13 +74,18 @@ service cloud.firestore {
         && request.resource.data.reservationDateTime is timestamp
         && request.resource.data.status == '予約受付'
         && request.resource.data.source in ['web', 'app', 'line']
-        && (request.resource.data.source == 'web' || signedIn())
+        && (
+          (request.resource.data.source == 'web'
+            && isShopWebBookingEnabled(request.resource.data.shopId))
+          || (request.resource.data.source != 'web' && signedIn())
+        )
         && request.resource.data.isNotified == false
         && request.resource.data.createdAt == request.time;
     }
 
     match /shops/{shopId} {
-      allow read: if true;
+      allow read: if resource.data.isWebPublished == true
+        || (signedIn() && resource.data.ownerId == request.auth.uid);
       allow create: if signedIn()
         && hasOnlyShopFields()
         && request.resource.data.ownerId == request.auth.uid
