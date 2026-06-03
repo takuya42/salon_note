@@ -12,7 +12,8 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 import 'firebase_options.dart';
-import 'splash/splash_page.dart';
+import 'web/web_router.dart';
+import 'web/web_url_strategy.dart';
 
 void main() {
   runZonedGuarded(() async {
@@ -21,6 +22,10 @@ void main() {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    if (kIsWeb) {
+      configureWebUrlStrategy();
+    }
 
     /// iOS / Android のみ実行
     if (!kIsWeb) {
@@ -94,7 +99,9 @@ class SalonNoteApp extends StatelessWidget {
         ),
       ],
 
-      home: const SplashPage(),
+      initialRoute: '/',
+      onGenerateRoute: WebRouter.onGenerateRoute,
+      onUnknownRoute: WebRouter.onUnknownRoute,
     );
   }
 }
