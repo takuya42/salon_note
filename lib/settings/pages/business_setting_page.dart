@@ -10,7 +10,6 @@ class BusinessSettingPage extends StatefulWidget {
 }
 
 class _BusinessSettingPageState extends State<BusinessSettingPage> {
-
   /// 営業時間
   TimeOfDay openTime = const TimeOfDay(hour: 10, minute: 0);
   TimeOfDay closeTime = const TimeOfDay(hour: 20, minute: 0);
@@ -75,6 +74,7 @@ class _BusinessSettingPageState extends State<BusinessSettingPage> {
       }
     }
 
+    if (!mounted) return;
     setState(() {
       isLoading = false;
     });
@@ -82,7 +82,6 @@ class _BusinessSettingPageState extends State<BusinessSettingPage> {
 
   /// 🔥 保存（shopsに保存）
   Future<void> _save() async {
-
     if (shopId == null) return;
 
     List<int> closedDays = [];
@@ -92,19 +91,23 @@ class _BusinessSettingPageState extends State<BusinessSettingPage> {
       }
     }
 
-    await FirebaseFirestore.instance
-        .collection('shops')
-        .doc(shopId)
-        .collection('settings')
-        .doc('business')
-        .set({
+    final shopRef = FirebaseFirestore.instance.collection('shops').doc(shopId);
+
+    await shopRef.collection('settings').doc('business').set({
       "openHour": openTime.hour,
       "openMinute": openTime.minute,
       "closeHour": closeTime.hour,
       "closeMinute": closeTime.minute,
       "closedDays": closedDays,
+      "updatedAt": FieldValue.serverTimestamp(),
     });
 
+    await shopRef.set({
+      "businessHours": _formatBusinessHours(closedDays),
+      "updatedAt": FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("保存しました")),
     );
@@ -130,9 +133,36 @@ class _BusinessSettingPageState extends State<BusinessSettingPage> {
 
   String _format(TimeOfDay time) => time.format(context);
 
+  String _formatBusinessHours(List<int> closedDays) {
+    final buffer = StringBuffer()
+      ..write(_formatTwoDigits(openTime.hour))
+      ..write(':')
+      ..write(_formatTwoDigits(openTime.minute))
+      ..write('〜')
+      ..write(_formatTwoDigits(closeTime.hour))
+      ..write(':')
+      ..write(_formatTwoDigits(closeTime.minute));
+
+    if (closedDays.isNotEmpty) {
+      final labels = closedDays
+          .where((day) => day >= 1 && day <= weekDays.length)
+          .map((day) => '毎週${weekDays[day - 1]}曜日')
+          .join('・');
+      if (labels.isNotEmpty) {
+        buffer
+          ..write('\n')
+          ..write('定休日 ')
+          ..write(labels);
+      }
+    }
+
+    return buffer.toString();
+  }
+
+  String _formatTwoDigits(int value) => value.toString().padLeft(2, '0');
+
   @override
   Widget build(BuildContext context) {
-
     if (isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -141,19 +171,16 @@ class _BusinessSettingPageState extends State<BusinessSettingPage> {
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
-
       appBar: AppBar(
         title: const Text("営業設定"),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-
             /// 営業時間
             _card(
               child: Column(
@@ -185,7 +212,6 @@ class _BusinessSettingPageState extends State<BusinessSettingPage> {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),
-
                   Wrap(
                     spacing: 8,
                     children: List.generate(weekDays.length, (index) {
@@ -206,7 +232,6 @@ class _BusinessSettingPageState extends State<BusinessSettingPage> {
             ),
 
             const Spacer(),
-
             /// 保存
             SizedBox(
               width: double.infinity,

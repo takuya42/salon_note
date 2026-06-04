@@ -6,6 +6,7 @@ class WebSettingData {
     required this.shopId,
     required this.shopName,
     required this.description,
+    required this.address,
     required this.phone,
     required this.imageUrl,
     required this.businessHours,
@@ -15,6 +16,7 @@ class WebSettingData {
   final String shopId;
   final String shopName;
   final String description;
+  final String address;
   final String phone;
   final String imageUrl;
   final String businessHours;
@@ -31,6 +33,7 @@ class WebSettingData {
           (shopData['name'] as String?) ??
           '',
       description: (shopData['description'] as String?) ?? '',
+      address: (shopData['address'] as String?) ?? '',
       phone: (shopData['phone'] as String?) ?? '',
       imageUrl: (shopData['imageUrl'] as String?) ?? '',
       businessHours: _BusinessHoursFormatter.format(businessData) ??
@@ -85,6 +88,7 @@ class WebSettingService {
       'shopId': setting.shopId,
       'shopName': setting.shopName.trim(),
       'description': setting.description.trim(),
+      'address': setting.address.trim(),
       'phone': setting.phone.trim(),
       'imageUrl': setting.imageUrl.trim(),
       'businessHours': setting.businessHours.trim(),
@@ -124,12 +128,12 @@ class _BusinessHoursFormatter {
     if (closedDays.isNotEmpty) {
       final labels = closedDays
           .where((day) => day >= 1 && day <= _weekDays.length)
-          .map((day) => _weekDays[day - 1])
+          .map((day) => '毎週${_weekDays[day - 1]}')
           .join('・');
       if (labels.isNotEmpty) {
         buffer
           ..write('\n')
-          ..write('定休日: ')
+          ..write('定休日 ')
           ..write(labels);
       }
     }

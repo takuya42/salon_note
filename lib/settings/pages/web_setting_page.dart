@@ -27,6 +27,7 @@ class _WebSettingPageState extends State<WebSettingPage> {
 
   final _shopNameController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
   final _imageUrlController = TextEditingController();
 
@@ -47,6 +48,7 @@ class _WebSettingPageState extends State<WebSettingPage> {
   void dispose() {
     _shopNameController.dispose();
     _descriptionController.dispose();
+    _addressController.dispose();
     _phoneController.dispose();
     _imageUrlController.dispose();
     super.dispose();
@@ -68,6 +70,7 @@ class _WebSettingPageState extends State<WebSettingPage> {
       _shopId = setting.shopId;
       _shopNameController.text = setting.shopName;
       _descriptionController.text = setting.description;
+      _addressController.text = setting.address;
       _phoneController.text = setting.phone;
       _imageUrlController.text = setting.imageUrl;
       setState(() {
@@ -104,6 +107,7 @@ class _WebSettingPageState extends State<WebSettingPage> {
           shopId: shopId,
           shopName: _shopNameController.text,
           description: _descriptionController.text,
+          address: _addressController.text,
           phone: _phoneController.text,
           imageUrl: _imageUrlController.text,
           businessHours: _businessHours,
@@ -199,6 +203,15 @@ class _WebSettingPageState extends State<WebSettingPage> {
                         icon: Icons.notes,
                         minLines: 3,
                         maxLines: 5,
+                      ),
+                      const SizedBox(height: 16),
+                      _TextField(
+                        controller: _addressController,
+                        label: '住所',
+                        icon: Icons.location_on,
+                        keyboardType: TextInputType.multiline,
+                        minLines: 2,
+                        maxLines: 4,
                       ),
                       const SizedBox(height: 16),
                       _TextField(
