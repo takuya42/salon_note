@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/web_menu.dart';
 import '../models/web_shop.dart';
@@ -48,13 +49,29 @@ class WebShopService {
   }
 
   Stream<List<WebMenu>> watchMenus(String shopId) {
+    final normalizedShopId = shopId.trim();
+
     return _firestore
         .collection('menus')
-        .where('shopId', isEqualTo: shopId)
-        .orderBy('createdAt')
+        .where('shopId', isEqualTo: normalizedShopId)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs.map(WebMenu.fromFirestore).toList(),
-        );
+        .map((snapshot) {
+      final menus = snapshot.docs.map(WebMenu.fromFirestore).toList()
+        ..sort((a, b) {
+          final aCreatedAt = a.createdAt;
+          final bCreatedAt = b.createdAt;
+          if (aCreatedAt == null && bCreatedAt == null) {
+            return a.menuId.compareTo(b.menuId);
+          }
+          if (aCreatedAt == null) return 1;
+          if (bCreatedAt == null) return -1;
+          return aCreatedAt.compareTo(bCreatedAt);
+        });
+
+      return menus;
+    }).handleError((Object error) {
+      debugPrint('MENU ERROR => $error');
+      throw error;
+    });
   }
 }

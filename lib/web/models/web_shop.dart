@@ -42,7 +42,7 @@ class WebShop {
       description: (data['description'] as String?) ?? '',
       address: (data['address'] as String?) ?? '',
       phone: (data['phone'] as String?) ?? '',
-      imageUrl: (data['imageUrl'] as String?) ?? '',
+      imageUrl: ((data['imageUrl'] as String?) ?? '').trim(),
       businessHours: (data['businessHours'] as String?) ?? '',
       ownerId: (data['ownerId'] as String?) ?? '',
       ownerEmail: (data['ownerEmail'] as String?) ?? '',
