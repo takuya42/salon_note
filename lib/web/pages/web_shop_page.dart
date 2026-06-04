@@ -82,16 +82,13 @@ class WebShopPage extends ConsumerWidget {
                       error: (_, __) => const Text('メニューの読み込みに失敗しました。'),
                     ),
                     const SizedBox(height: 24),
-                    if (shop.isWebBookingEnabled)
-                      WebPrimaryButton(
-                        label: 'このサロンを予約する',
-                        onPressed: () => Navigator.pushNamed(
-                          context,
-                          WebRoutePaths.booking(shop.shopName),
-                        ),
-                      )
-                    else
-                      const WebCard(child: Text('現在Web予約の受付を停止しています。')),
+                    WebPrimaryButton(
+                      label: 'このサロンを予約する',
+                      onPressed: () => Navigator.pushNamed(
+                        context,
+                        WebRoutePaths.booking(shop.shopName),
+                      ),
+                    ),
                   ],
                 ),
               ),

@@ -4,9 +4,12 @@ import 'package:flutter/services.dart';
 import '../../web/web_route_paths.dart';
 import '../services/web_setting_service.dart';
 
-const _primaryColor = Color(0xFFD8C2B9);
-const _darkBrown = Color(0xFF5C4A43);
-const _backgroundColor = Color(0xFFF7F3F0);
+const _beige = Color(0xFFE4D2C3);
+const _lightBeige = Color(0xFFF8F2EC);
+const _creamWhite = Color(0xFFFFFCF8);
+const _darkBrown = Color(0xFF5A463A);
+const _mutedBrown = Color(0xFF8A7468);
+const _backgroundColor = Color(0xFFF6EFE8);
 
 class WebSettingPage extends StatefulWidget {
   const WebSettingPage({super.key, WebSettingService? service})
@@ -26,11 +29,10 @@ class _WebSettingPageState extends State<WebSettingPage> {
   final _descriptionController = TextEditingController();
   final _phoneController = TextEditingController();
   final _imageUrlController = TextEditingController();
-  final _businessHoursController = TextEditingController();
 
   String? _shopId;
+  String _businessHours = '';
   bool _isWebPublished = false;
-  bool _isWebBookingEnabled = false;
   bool _isLoading = true;
   bool _isSaving = false;
   String? _errorMessage;
@@ -47,7 +49,6 @@ class _WebSettingPageState extends State<WebSettingPage> {
     _descriptionController.dispose();
     _phoneController.dispose();
     _imageUrlController.dispose();
-    _businessHoursController.dispose();
     super.dispose();
   }
 
@@ -69,10 +70,9 @@ class _WebSettingPageState extends State<WebSettingPage> {
       _descriptionController.text = setting.description;
       _phoneController.text = setting.phone;
       _imageUrlController.text = setting.imageUrl;
-      _businessHoursController.text = setting.businessHours;
       setState(() {
+        _businessHours = setting.businessHours;
         _isWebPublished = setting.isWebPublished;
-        _isWebBookingEnabled = setting.isWebBookingEnabled;
         _isLoading = false;
       });
     } catch (_) {
@@ -106,9 +106,8 @@ class _WebSettingPageState extends State<WebSettingPage> {
           description: _descriptionController.text,
           phone: _phoneController.text,
           imageUrl: _imageUrlController.text,
-          businessHours: _businessHoursController.text,
+          businessHours: _businessHours,
           isWebPublished: _isWebPublished,
-          isWebBookingEnabled: _isWebBookingEnabled,
         ),
       );
 
@@ -145,132 +144,152 @@ class _WebSettingPageState extends State<WebSettingPage> {
     return Scaffold(
       backgroundColor: _backgroundColor,
       appBar: AppBar(
-        title: const Text('Web公開設定'),
-        backgroundColor: _primaryColor,
+        centerTitle: true,
+        title: const Text(
+          'Web公開設定',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: _backgroundColor,
         foregroundColor: _darkBrown,
         elevation: 0,
+        scrolledUnderElevation: 0,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
               children: [
+                const _HeaderCard(),
+                const SizedBox(height: 20),
                 if (_errorMessage != null) ...[
                   _ErrorCard(message: _errorMessage!),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                 ],
                 _SettingCard(
-                  children: [
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      activeColor: _darkBrown,
-                      title: const Text('Webページを公開'),
-                      subtitle: const Text('オフにすると公開ページと予約ページを非公開にします'),
-                      value: _isWebPublished,
-                      onChanged: (value) {
-                        setState(() {
-                          _isWebPublished = value;
-                          if (!value) _isWebBookingEnabled = false;
-                        });
-                      },
+                  child: SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    activeColor: _darkBrown,
+                    title: const Text(
+                      'Webページを公開',
+                      style: TextStyle(
+                        color: _darkBrown,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    const Divider(),
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      activeColor: _darkBrown,
-                      title: const Text('Web予約を受け付ける'),
-                      subtitle: const Text('公開ページからの予約ボタンと予約フォームを有効にします'),
-                      value: _isWebBookingEnabled,
-                      onChanged: _isWebPublished
-                          ? (value) => setState(
-                                () => _isWebBookingEnabled = value,
-                              )
-                          : null,
-                    ),
-                  ],
+                    subtitle: const Text('オフにすると公開ページを非公開にします'),
+                    value: _isWebPublished,
+                    onChanged: (value) {
+                      setState(() => _isWebPublished = value);
+                    },
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 _SettingCard(
-                  children: [
-                    _TextField(
-                      controller: _shopNameController,
-                      label: '店舗名',
-                      icon: Icons.storefront,
-                    ),
-                    const SizedBox(height: 12),
-                    _TextField(
-                      controller: _descriptionController,
-                      label: '店舗紹介',
-                      icon: Icons.notes,
-                      minLines: 3,
-                      maxLines: 5,
-                    ),
-                    const SizedBox(height: 12),
-                    _TextField(
-                      controller: _phoneController,
-                      label: '電話番号',
-                      icon: Icons.phone,
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 12),
-                    _TextField(
-                      controller: _businessHoursController,
-                      label: '営業時間表示',
-                      icon: Icons.schedule,
-                    ),
-                    const SizedBox(height: 12),
-                    _TextField(
-                      controller: _imageUrlController,
-                      label: 'メイン画像URL',
-                      icon: Icons.image,
-                      keyboardType: TextInputType.url,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (_shopId != null)
-                  _SettingCard(
+                  child: Column(
                     children: [
-                      const Text(
-                        '公開URL',
-                        style: TextStyle(
-                          color: _darkBrown,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      _TextField(
+                        controller: _shopNameController,
+                        label: '店舗名',
+                        icon: Icons.storefront,
                       ),
-                      const SizedBox(height: 8),
-                      SelectableText(
-                        WebRoutePaths.canonicalShopUri(_shopId!).toString(),
+                      const SizedBox(height: 16),
+                      _TextField(
+                        controller: _descriptionController,
+                        label: '店舗紹介',
+                        icon: Icons.notes,
+                        minLines: 3,
+                        maxLines: 5,
                       ),
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: _copyUrl,
-                        icon: const Icon(Icons.copy),
-                        label: const Text('URLをコピー'),
+                      const SizedBox(height: 16),
+                      _TextField(
+                        controller: _phoneController,
+                        label: '電話番号',
+                        icon: Icons.phone,
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 16),
+                      _BusinessHoursPanel(businessHours: _businessHours),
+                      const SizedBox(height: 16),
+                      _TextField(
+                        controller: _imageUrlController,
+                        label: 'メイン画像URL',
+                        icon: Icons.image,
+                        keyboardType: TextInputType.url,
                       ),
                     ],
                   ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _isSaving ? null : _save,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _darkBrown,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                ),
+                const SizedBox(height: 16),
+                if (_shopId != null)
+                  _SettingCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '公開URL',
+                          style: TextStyle(
+                            color: _darkBrown,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SelectableText(
+                          WebRoutePaths.canonicalShopUri(_shopId!).toString(),
+                          style: const TextStyle(color: _mutedBrown),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _copyUrl,
+                            icon: const Icon(Icons.copy),
+                            label: const Text('公開URLをコピー'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _beige,
+                              foregroundColor: _darkBrown,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                const SizedBox(height: 28),
+                SizedBox(
+                  height: 58,
+                  child: ElevatedButton(
+                    onPressed: _isSaving ? null : _save,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _darkBrown,
+                      foregroundColor: Colors.white,
+                      elevation: 8,
+                      shadowColor: _darkBrown.withAlpha(61),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            '設定を保存',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        )
-                      : const Text('保存'),
+                  ),
                 ),
               ],
             ),
@@ -278,27 +297,153 @@ class _WebSettingPageState extends State<WebSettingPage> {
   }
 }
 
-class _SettingCard extends StatelessWidget {
-  const _SettingCard({required this.children});
+class _HeaderCard extends StatelessWidget {
+  const _HeaderCard();
 
-  final List<Widget> children;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _creamWhite,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: _darkBrown.withAlpha(41),
+            blurRadius: 26,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: _lightBeige,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(Icons.language, color: _darkBrown, size: 30),
+          ),
+          const SizedBox(width: 16),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Web予約ページ',
+                  style: TextStyle(
+                    color: _darkBrown,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  '公開ページを管理できます',
+                  style: TextStyle(color: _mutedBrown, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BusinessHoursPanel extends StatelessWidget {
+  const _BusinessHoursPanel({required this.businessHours});
+
+  final String businessHours;
+
+  @override
+  Widget build(BuildContext context) {
+    final displayText = businessHours.trim().isEmpty
+        ? '営業設定で営業時間と定休日を設定すると自動表示されます。'
+        : businessHours;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _lightBeige,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _beige.withAlpha(204)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.schedule, color: _darkBrown),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '営業時間表示',
+                  style: TextStyle(
+                    color: _darkBrown,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  displayText,
+                  style: const TextStyle(
+                    color: _mutedBrown,
+                    height: 1.6,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingCard extends StatelessWidget {
+  const _SettingCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _creamWhite,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: _darkBrown.withAlpha(36),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _ErrorCard extends StatelessWidget {
+  const _ErrorCard({required this.message});
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFFFF0F0),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
-      child: Column(children: children),
+      child: Text(message, style: const TextStyle(color: Colors.redAccent)),
     );
   }
 }
@@ -327,34 +472,24 @@ class _TextField extends StatelessWidget {
       keyboardType: keyboardType,
       minLines: minLines,
       maxLines: maxLines,
+      style: const TextStyle(color: _darkBrown),
       decoration: InputDecoration(
+        prefixIcon: Icon(icon, color: _mutedBrown),
         labelText: label,
-        prefixIcon: Icon(icon),
+        labelStyle: const TextStyle(color: _mutedBrown),
         filled: true,
-        fillColor: _backgroundColor,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
+        fillColor: _lightBeige,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: _beige.withAlpha(204)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _darkBrown, width: 1.4),
         ),
       ),
-    );
-  }
-}
-
-class _ErrorCard extends StatelessWidget {
-  const _ErrorCard({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(message, style: const TextStyle(color: Colors.red)),
     );
   }
 }
