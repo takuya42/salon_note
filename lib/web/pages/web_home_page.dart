@@ -21,34 +21,45 @@ class WebHomePage extends ConsumerWidget {
     final shopsAsync = ref.watch(webHomeShopsProvider);
 
     return WebPageShell(
-      maxWidth: 560,
+      maxWidth: 620,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 34),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'SalonNote Web予約',
+              'SalonNote',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: webBlack,
-                fontSize: 32,
+                color: webGold,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 3,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Web予約',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: webDarkBrown,
+                fontSize: 34,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.2,
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             const Text(
               '登録済み店舗一覧',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: webMuted,
-                fontSize: 18,
+                fontSize: 17,
                 fontWeight: FontWeight.w700,
                 height: 1.5,
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 32),
             shopsAsync.when(
               data: (shops) {
                 if (shops.isEmpty) {
@@ -69,10 +80,12 @@ class WebHomePage extends ConsumerWidget {
                   children: shops
                       .map(
                         (shop) => Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.only(bottom: 18),
                           child: _ShopCard(
                             shop: shop,
-                            onOpen: () => _openShop(context, shop.shopName),
+                            onOpen: shop.shopName.isEmpty
+                                ? null
+                                : () => _openShop(context, shop.shopName),
                           ),
                         ),
                       )
@@ -83,7 +96,7 @@ class WebHomePage extends ConsumerWidget {
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
                   child: Center(
-                    child: CircularProgressIndicator(color: webBlack),
+                    child: CircularProgressIndicator(color: webDarkBrown),
                   ),
                 ),
               ),
@@ -98,7 +111,7 @@ class WebHomePage extends ConsumerWidget {
                         '店舗一覧を取得できませんでした。',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: webBlack,
+                          color: webDarkBrown,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -132,42 +145,114 @@ class _ShopCard extends StatelessWidget {
   });
 
   final WebShop shop;
-  final VoidCallback onOpen;
+  final VoidCallback? onOpen;
 
   @override
   Widget build(BuildContext context) {
-    return WebCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            shop.shopName.isEmpty ? '店舗名未設定' : shop.shopName,
-            style: const TextStyle(
-              color: webBlack,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              height: 1.35,
-            ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onOpen,
+        borderRadius: BorderRadius.circular(30),
+        child: WebCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _ShopImage(imageUrl: shop.imageUrl),
+              Padding(
+                padding: const EdgeInsets.all(22),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      shop.shopName.isEmpty ? '店舗名未設定' : shop.shopName,
+                      style: const TextStyle(
+                        color: webDarkBrown,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _ShopInfo(
+                      icon: Icons.location_on_outlined,
+                      label: '住所',
+                      value: shop.address.isEmpty ? '住所は未設定です。' : shop.address,
+                    ),
+                    const SizedBox(height: 12),
+                    _ShopInfo(
+                      icon: Icons.schedule,
+                      label: '営業時間',
+                      value: shop.businessHours.isEmpty
+                          ? '営業時間は未設定です。'
+                          : shop.businessHours,
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: const [
+                        Text(
+                          '店舗ページを見る',
+                          style: TextStyle(
+                            color: webBrown,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(width: 6),
+                        Icon(Icons.arrow_forward, color: webBrown, size: 18),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 14),
-          _ShopInfo(
-            label: '店舗紹介',
-            value:
-                shop.description.isEmpty ? '紹介文は未設定です。' : shop.description,
-          ),
-          const SizedBox(height: 12),
-          _ShopInfo(
-            label: '営業時間',
-            value: shop.businessHours.isEmpty
-                ? '営業時間は未設定です。'
-                : shop.businessHours,
-          ),
-          const SizedBox(height: 20),
-          WebPrimaryButton(
-            label: '店舗ページを見る',
-            onPressed: shop.shopName.isEmpty ? null : onOpen,
-          ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShopImage extends StatelessWidget {
+  const _ShopImage({required this.imageUrl});
+
+  final String imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      child: SizedBox(
+        height: 190,
+        width: double.infinity,
+        child: imageUrl.isEmpty
+            ? const _ShopImagePlaceholder()
+            : Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const _ShopImagePlaceholder(),
+              ),
+      ),
+    );
+  }
+}
+
+class _ShopImagePlaceholder extends StatelessWidget {
+  const _ShopImagePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [webBeige, webCream],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: const Center(
+        child: Icon(Icons.spa, color: Colors.white, size: 60),
       ),
     );
   }
@@ -175,33 +260,45 @@ class _ShopCard extends StatelessWidget {
 
 class _ShopInfo extends StatelessWidget {
   const _ShopInfo({
+    required this.icon,
     required this.label,
     required this.value,
   });
 
+  final IconData icon;
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: webMuted,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            color: webBlack,
-            fontSize: 15,
-            height: 1.6,
+        Icon(icon, color: webGold, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: webMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: webDarkBrown,
+                  fontSize: 15,
+                  height: 1.55,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
       ],

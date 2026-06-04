@@ -26,67 +26,92 @@ class WebShopPage extends ConsumerWidget {
             slivers: [
               SliverToBoxAdapter(child: _HeroImage(imageUrl: shop.imageUrl)),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
+                padding: const EdgeInsets.fromLTRB(22, 26, 22, 32),
                 sliver: SliverList.list(
                   children: [
-                    Text(
-                      shop.shopName,
-                      style: const TextStyle(
-                        color: webBlack,
-                        fontSize: 30,
+                    const Text(
+                      'Private Salon',
+                      style: TextStyle(
+                        color: webGold,
+                        fontSize: 13,
                         fontWeight: FontWeight.bold,
+                        letterSpacing: 2.2,
                       ),
                     ),
                     const SizedBox(height: 10),
-                    if (shop.description.isNotEmpty)
-                      Text(
-                        shop.description,
-                        style: const TextStyle(
-                          color: webMuted,
-                          height: 1.8,
-                          fontSize: 15,
-                        ),
-                      ),
-                    const SizedBox(height: 20),
-                    WebCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Information',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 12),
-                          if (shop.businessHours.isNotEmpty)
-                            _InfoRow(label: '営業時間', value: shop.businessHours),
-                          if (shop.phone.isNotEmpty)
-                            _InfoRow(label: '電話番号', value: shop.phone),
-                          _InfoRow(label: '店舗ID', value: shop.shopId),
-                        ],
+                    Text(
+                      shop.shopName,
+                      style: const TextStyle(
+                        color: webDarkBrown,
+                        fontSize: 34,
+                        fontWeight: FontWeight.bold,
+                        height: 1.15,
                       ),
                     ),
                     const SizedBox(height: 22),
+                    _InfoCard(
+                      icon: Icons.auto_awesome,
+                      title: '店舗紹介',
+                      value: shop.description.isEmpty
+                          ? 'サロンからの紹介文は準備中です。'
+                          : shop.description,
+                    ),
+                    const SizedBox(height: 14),
+                    _InfoCard(
+                      icon: Icons.location_on_outlined,
+                      title: '住所',
+                      value: shop.address.isEmpty ? '住所は未設定です。' : shop.address,
+                    ),
+                    const SizedBox(height: 14),
+                    _InfoCard(
+                      icon: Icons.schedule,
+                      title: '営業時間',
+                      value: shop.businessHours.isEmpty
+                          ? '営業時間は未設定です。'
+                          : shop.businessHours,
+                    ),
+                    const SizedBox(height: 14),
+                    _InfoCard(
+                      icon: Icons.phone_outlined,
+                      title: '電話番号',
+                      value: shop.phone.isEmpty ? '電話番号は未設定です。' : shop.phone,
+                    ),
+                    const SizedBox(height: 30),
                     const Text(
                       'Menu',
                       style: TextStyle(
-                        color: webBlack,
-                        fontSize: 22,
+                        color: webDarkBrown,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     ref.watch(webMenusProvider(shop.shopId)).when(
-                      data: (menus) => _MenuList(menus: menus),
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (_, __) => const Text('メニューの読み込みに失敗しました。'),
-                    ),
-                    const SizedBox(height: 24),
-                    WebPrimaryButton(
-                      label: 'このサロンを予約する',
-                      onPressed: () => Navigator.pushNamed(
-                        context,
-                        WebRoutePaths.booking(shop.shopName),
+                          data: (menus) => _MenuList(menus: menus),
+                          loading: () => const WebCard(
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                          error: (_, __) => const WebCard(
+                            child: Text('メニューの読み込みに失敗しました。'),
+                          ),
+                        ),
+                    const SizedBox(height: 30),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            color: webBrown.withOpacity(0.20),
+                            blurRadius: 28,
+                            offset: const Offset(0, 12),
+                          ),
+                        ],
+                      ),
+                      child: WebPrimaryButton(
+                        label: 'このサロンを予約する',
+                        onPressed: () => Navigator.pushNamed(
+                          context,
+                          WebRoutePaths.booking(shop.shopName),
+                        ),
                       ),
                     ),
                   ],
@@ -111,45 +136,103 @@ class _HeroImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 16 / 10,
+    return Container(
+      margin: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+      height: 300,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(34),
+        boxShadow: [
+          BoxShadow(
+            color: webBrown.withOpacity(0.18),
+            blurRadius: 34,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
       child: imageUrl.isEmpty
-          ? Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [webBeige, webLightBeige],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: const Center(
-                child: Icon(Icons.spa, size: 72, color: Colors.white),
-              ),
-            )
-          : Image.network(imageUrl, fit: BoxFit.cover),
+          ? const _HeroPlaceholder()
+          : Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const _HeroPlaceholder(),
+            ),
     );
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
+class _HeroPlaceholder extends StatelessWidget {
+  const _HeroPlaceholder();
 
-  final String label;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [webBeige, webCream],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: const Center(
+        child: Icon(Icons.spa, size: 86, color: Colors.white),
+      ),
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String title;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+    return WebCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 86,
-            child: Text(label, style: const TextStyle(color: webMuted)),
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: webBeige.withOpacity(0.45),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: webBrown, size: 24),
           ),
+          const SizedBox(width: 16),
           Expanded(
-            child: Text(value, style: const TextStyle(color: webBlack)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: webMuted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: webDarkBrown,
+                    fontSize: 16,
+                    height: 1.7,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -171,7 +254,7 @@ class _MenuList extends StatelessWidget {
     return Column(
       children: menus.map((menu) {
         return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.only(bottom: 14),
           child: WebCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,6 +266,7 @@ class _MenuList extends StatelessWidget {
                       child: Text(
                         menu.name,
                         style: const TextStyle(
+                          color: webDarkBrown,
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
                         ),
@@ -190,7 +274,10 @@ class _MenuList extends StatelessWidget {
                     ),
                     Text(
                       '¥${menu.price}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: webBrown,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
-const webBeige = Color(0xFFE7D8C9);
-const webLightBeige = Color(0xFFF8F3EE);
-const webBlack = Color(0xFF161616);
-const webMuted = Color(0xFF7D736B);
+const webBeige = Color(0xFFE6D4C3);
+const webLightBeige = Color(0xFFF7EFE7);
+const webCream = Color(0xFFFFFCF8);
+const webBrown = Color(0xFF6A4A3C);
+const webDarkBrown = Color(0xFF3F2F29);
+const webBlack = webDarkBrown;
+const webMuted = Color(0xFF8A7468);
+const webGold = Color(0xFFC5A06A);
 
 class WebPageShell extends StatelessWidget {
   const WebPageShell({
@@ -20,10 +24,19 @@ class WebPageShell extends StatelessWidget {
     return Scaffold(
       backgroundColor: webLightBeige,
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: child,
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [webCream, webLightBeige],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth),
+              child: child,
+            ),
           ),
         ),
       ),
@@ -47,15 +60,17 @@ class WebPrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 54,
+      height: 62,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: webBlack,
+          backgroundColor: webBrown,
           foregroundColor: Colors.white,
           disabledBackgroundColor: webMuted.withOpacity(0.35),
+          elevation: 10,
+          shadowColor: webBrown.withOpacity(0.28),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
           ),
         ),
         child: isLoading
@@ -69,7 +84,11 @@ class WebPrimaryButton extends StatelessWidget {
               )
             : Text(
                 label,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.4,
+                ),
               ),
       ),
     );
@@ -77,23 +96,25 @@ class WebPrimaryButton extends StatelessWidget {
 }
 
 class WebCard extends StatelessWidget {
-  const WebCard({super.key, required this.child});
+  const WebCard({super.key, required this.child, this.padding});
 
   final Widget child;
+  final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: padding ?? const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        color: webCream,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withOpacity(0.72)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+            color: webBrown.withOpacity(0.12),
+            blurRadius: 30,
+            offset: const Offset(0, 16),
           ),
         ],
       ),

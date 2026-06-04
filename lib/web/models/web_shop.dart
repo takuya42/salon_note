@@ -5,6 +5,7 @@ class WebShop {
     required this.shopId,
     required this.shopName,
     required this.description,
+    required this.address,
     required this.phone,
     required this.imageUrl,
     required this.businessHours,
@@ -18,6 +19,7 @@ class WebShop {
   final String shopId;
   final String shopName;
   final String description;
+  final String address;
   final String phone;
   final String imageUrl;
   final String businessHours;
@@ -38,6 +40,7 @@ class WebShop {
       shopName:
           (data['name'] as String?) ?? (data['shopName'] as String?) ?? '',
       description: (data['description'] as String?) ?? '',
+      address: (data['address'] as String?) ?? '',
       phone: (data['phone'] as String?) ?? '',
       imageUrl: (data['imageUrl'] as String?) ?? '',
       businessHours: (data['businessHours'] as String?) ?? '',
@@ -54,6 +57,7 @@ class WebShop {
       'shopId': shopId,
       'shopName': shopName,
       'description': description,
+      'address': address,
       'phone': phone,
       'imageUrl': imageUrl,
       'businessHours': businessHours,
