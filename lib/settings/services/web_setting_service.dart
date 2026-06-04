@@ -10,7 +10,6 @@ class WebSettingData {
     required this.imageUrl,
     required this.businessHours,
     required this.isWebPublished,
-    required this.isWebBookingEnabled,
   });
 
   final String shopId;
@@ -20,21 +19,24 @@ class WebSettingData {
   final String imageUrl;
   final String businessHours;
   final bool isWebPublished;
-  final bool isWebBookingEnabled;
 
   factory WebSettingData.fromFirestore(
     String shopId,
-    Map<String, dynamic> data,
+    Map<String, dynamic> shopData,
+    Map<String, dynamic>? businessData,
   ) {
     return WebSettingData(
       shopId: shopId,
-      shopName: (data['shopName'] as String?) ?? (data['name'] as String?) ?? '',
-      description: (data['description'] as String?) ?? '',
-      phone: (data['phone'] as String?) ?? '',
-      imageUrl: (data['imageUrl'] as String?) ?? '',
-      businessHours: (data['businessHours'] as String?) ?? '',
-      isWebPublished: (data['isWebPublished'] as bool?) ?? false,
-      isWebBookingEnabled: (data['isWebBookingEnabled'] as bool?) ?? false,
+      shopName: (shopData['shopName'] as String?) ??
+          (shopData['name'] as String?) ??
+          '',
+      description: (shopData['description'] as String?) ?? '',
+      phone: (shopData['phone'] as String?) ?? '',
+      imageUrl: (shopData['imageUrl'] as String?) ?? '',
+      businessHours: _BusinessHoursFormatter.format(businessData) ??
+          (shopData['businessHours'] as String?) ??
+          '',
+      isWebPublished: (shopData['isWebPublished'] as bool?) ?? false,
     );
   }
 }
@@ -64,9 +66,17 @@ class WebSettingService {
     final shopDoc = await _firestore.collection('shops').doc(shopId).get();
     if (!shopDoc.exists) return null;
 
+    final businessDoc = await _firestore
+        .collection('shops')
+        .doc(shopId)
+        .collection('settings')
+        .doc('business')
+        .get();
+
     return WebSettingData.fromFirestore(
       shopId,
       shopDoc.data() ?? <String, dynamic>{},
+      businessDoc.data(),
     );
   }
 
@@ -79,8 +89,57 @@ class WebSettingService {
       'imageUrl': setting.imageUrl.trim(),
       'businessHours': setting.businessHours.trim(),
       'isWebPublished': setting.isWebPublished,
-      'isWebBookingEnabled': setting.isWebBookingEnabled,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+}
+
+class _BusinessHoursFormatter {
+  static const _weekDays = [
+    '月曜日',
+    '火曜日',
+    '水曜日',
+    '木曜日',
+    '金曜日',
+    '土曜日',
+    '日曜日',
+  ];
+
+  static String? format(Map<String, dynamic>? data) {
+    if (data == null) return null;
+
+    final openHour = data['openHour'] as int? ?? 10;
+    final openMinute = data['openMinute'] as int? ?? 0;
+    final closeHour = data['closeHour'] as int? ?? 20;
+    final closeMinute = data['closeMinute'] as int? ?? 0;
+    final closedDays = (data['closedDays'] as List<dynamic>? ?? const [])
+        .whereType<int>()
+        .toSet();
+
+    final buffer = StringBuffer()
+      ..write(_formatTime(openHour, openMinute))
+      ..write('〜')
+      ..write(_formatTime(closeHour, closeMinute));
+
+    if (closedDays.isNotEmpty) {
+      final labels = closedDays
+          .where((day) => day >= 1 && day <= _weekDays.length)
+          .map((day) => _weekDays[day - 1])
+          .join('・');
+      if (labels.isNotEmpty) {
+        buffer
+          ..write('\n')
+          ..write('定休日: ')
+          ..write(labels);
+      }
+    }
+
+    return buffer.toString();
+  }
+
+  static String _formatTime(int hour, int minute) {
+    final hourText = hour.toString().padLeft(2, '0');
+    final minuteText = minute.toString().padLeft(2, '0');
+    return '$hourText:$minuteText';
   }
 }

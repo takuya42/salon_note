@@ -25,10 +25,6 @@ class WebBookingPage extends ConsumerWidget {
             return const Center(child: Text('店舗が見つかりません。'));
           }
 
-          if (!shop.isWebBookingEnabled) {
-            return const Center(child: Text('現在Web予約の受付を停止しています。'));
-          }
-
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(

@@ -12,7 +12,6 @@ class WebShop {
     required this.ownerEmail,
     required this.planType,
     required this.isWebPublished,
-    required this.isWebBookingEnabled,
     required this.createdAt,
   });
 
@@ -26,7 +25,6 @@ class WebShop {
   final String ownerEmail;
   final String planType;
   final bool isWebPublished;
-  final bool isWebBookingEnabled;
   final DateTime? createdAt;
 
   bool get isProPlan => planType == 'pro';
@@ -37,7 +35,8 @@ class WebShop {
     final data = snapshot.data() ?? <String, dynamic>{};
     return WebShop(
       shopId: (data['shopId'] as String?) ?? snapshot.id,
-      shopName: (data['name'] as String?) ?? (data['shopName'] as String?) ?? '',
+      shopName:
+          (data['name'] as String?) ?? (data['shopName'] as String?) ?? '',
       description: (data['description'] as String?) ?? '',
       phone: (data['phone'] as String?) ?? '',
       imageUrl: (data['imageUrl'] as String?) ?? '',
@@ -46,7 +45,6 @@ class WebShop {
       ownerEmail: (data['ownerEmail'] as String?) ?? '',
       planType: (data['planType'] as String?) ?? 'free',
       isWebPublished: (data['isWebPublished'] as bool?) ?? false,
-      isWebBookingEnabled: (data['isWebBookingEnabled'] as bool?) ?? false,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
@@ -63,7 +61,6 @@ class WebShop {
       'ownerEmail': ownerEmail,
       'planType': planType,
       'isWebPublished': isWebPublished,
-      'isWebBookingEnabled': isWebBookingEnabled,
       'createdAt': createdAt == null
           ? FieldValue.serverTimestamp()
           : Timestamp.fromDate(createdAt!),
