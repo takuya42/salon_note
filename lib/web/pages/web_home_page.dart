@@ -87,31 +87,36 @@ class WebHomePage extends ConsumerWidget {
                   ),
                 ),
               ),
-              error: (error, _) => WebCard(
-                child: Column(
-                  children: [
-                    const Text(
-                      '店舗一覧を取得できませんでした。',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: webBlack,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+              error: (error, stack) {
+                debugPrint('ERROR => $error');
+                debugPrint('STACK => $stack');
+
+                return WebCard(
+                  child: Column(
+                    children: [
+                      const Text(
+                        '店舗一覧を取得できませんでした。',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: webBlack,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      error.toString(),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: webMuted,
-                        fontSize: 13,
-                        height: 1.5,
+                      const SizedBox(height: 8),
+                      Text(
+                        error.toString(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: webMuted,
+                          fontSize: 13,
+                          height: 1.5,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),

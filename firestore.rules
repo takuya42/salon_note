@@ -84,15 +84,19 @@ service cloud.firestore {
     }
 
     match /shops/{shopId} {
-      allow read: if resource.data.isWebPublished == true
-        || (signedIn() && resource.data.ownerId == request.auth.uid);
+      // Web予約ページ用
+      // 未ログインでも店舗一覧・店舗ページを見れるようにする
+      allow read: if true;
+
       allow create: if signedIn()
         && hasOnlyShopFields()
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.planType in ['free', 'pro'];
+
       allow update: if isSalonAdmin(shopId)
         && hasOnlyShopFields()
         && request.resource.data.planType in ['free', 'pro'];
+
       allow delete: if isSalonAdmin(shopId);
 
       match /{document=**} {

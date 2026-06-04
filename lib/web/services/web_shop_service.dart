@@ -41,12 +41,10 @@ class WebShopService {
   Stream<List<WebShop>> watchLatestShops({int limit = 50}) {
     return _firestore
         .collection('shops')
-        .orderBy('createdAt', descending: true)
-        .limit(limit)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs.map(WebShop.fromFirestore).toList(),
-        );
+    );
   }
 
   Stream<List<WebMenu>> watchMenus(String shopId) {
