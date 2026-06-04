@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 
 class WebSettingData {
   const WebSettingData({
@@ -44,15 +46,71 @@ class WebSettingData {
   }
 }
 
+class WebSettingMenuData {
+  const WebSettingMenuData({
+    required this.menuId,
+    required this.shopId,
+    required this.name,
+    required this.price,
+    required this.duration,
+    required this.description,
+    required this.createdAt,
+  });
+
+  final String menuId;
+  final String shopId;
+  final String name;
+  final int price;
+  final int duration;
+  final String description;
+  final DateTime? createdAt;
+
+  factory WebSettingMenuData.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> snapshot,
+  ) {
+    final data = snapshot.data() ?? <String, dynamic>{};
+    return WebSettingMenuData(
+      menuId: (data['menuId'] as String?) ?? snapshot.id,
+      shopId: (data['shopId'] as String?) ?? '',
+      name: (data['name'] as String?) ?? '',
+      price: (data['price'] as num?)?.toInt() ?? 0,
+      duration: (data['duration'] as num?)?.toInt() ?? 0,
+      description: (data['description'] as String?) ?? '',
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'menuId': menuId,
+      'shopId': shopId,
+      'name': name.trim(),
+      'price': price,
+      'duration': duration,
+      'description': description.trim(),
+      'createdAt': createdAt == null
+          ? FieldValue.serverTimestamp()
+          : Timestamp.fromDate(createdAt!),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+  }
+}
+
 class WebSettingService {
   WebSettingService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
+    FirebaseStorage? storage,
   })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+        _firestore = firestore ?? FirebaseFirestore.instance,
+        _storage = storage ?? FirebaseStorage.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+  final FirebaseStorage _storage;
+
+  CollectionReference<Map<String, dynamic>> get _menusRef =>
+      _firestore.collection('menus');
 
   Future<String?> fetchCurrentShopId() async {
     final uid = _auth.currentUser?.uid;
@@ -83,6 +141,54 @@ class WebSettingService {
     );
   }
 
+  Future<List<WebSettingMenuData>> fetchMenus(String shopId) async {
+    final snapshot = await _menusRef
+        .where('shopId', isEqualTo: shopId)
+        .orderBy('createdAt')
+        .get();
+
+    return snapshot.docs.map(WebSettingMenuData.fromFirestore).toList();
+  }
+
+  Stream<List<WebSettingMenuData>> watchCurrentShopMenus() async* {
+    final shopId = await fetchCurrentShopId();
+    if (shopId == null) {
+      yield const <WebSettingMenuData>[];
+      return;
+    }
+
+    yield* _menusRef
+        .where('shopId', isEqualTo: shopId)
+        .orderBy('createdAt')
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map(WebSettingMenuData.fromFirestore).toList());
+  }
+
+  Future<void> addMenu({
+    required String shopId,
+    required String name,
+    required int price,
+    required int duration,
+    String description = '',
+  }) async {
+    final doc = _menusRef.doc();
+    await doc.set({
+      'menuId': doc.id,
+      'shopId': shopId,
+      'name': name.trim(),
+      'price': price,
+      'duration': duration,
+      'description': description.trim(),
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> deleteMenu(String menuId) async {
+    await _menusRef.doc(menuId).delete();
+  }
+
   Future<void> save(WebSettingData setting) async {
     await _firestore.collection('shops').doc(setting.shopId).set({
       'shopId': setting.shopId,
@@ -95,6 +201,72 @@ class WebSettingService {
       'isWebPublished': setting.isWebPublished,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+
+  Future<void> saveMenus({
+    required String shopId,
+    required List<WebSettingMenuData> menus,
+  }) async {
+    final existingSnapshot =
+        await _menusRef.where('shopId', isEqualTo: shopId).get();
+    final existingIds = existingSnapshot.docs.map((doc) => doc.id).toSet();
+    final retainedIds = menus
+        .where((menu) => menu.name.trim().isNotEmpty)
+        .map((menu) => menu.menuId)
+        .where((menuId) => menuId.isNotEmpty)
+        .toSet();
+    final batch = _firestore.batch();
+
+    for (final doc in existingSnapshot.docs) {
+      if (!retainedIds.contains(doc.id)) {
+        batch.delete(doc.reference);
+      }
+    }
+
+    for (final menu in menus) {
+      final name = menu.name.trim();
+      if (name.isEmpty) continue;
+
+      final doc = menu.menuId.isEmpty ? _menusRef.doc() : _menusRef.doc(menu.menuId);
+      final isNewMenu = menu.menuId.isEmpty || !existingIds.contains(menu.menuId);
+      batch.set(
+        doc,
+        {
+          'menuId': doc.id,
+          'shopId': shopId,
+          'name': name,
+          'price': menu.price,
+          'duration': menu.duration,
+          'description': menu.description.trim(),
+          if (isNewMenu) 'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+    }
+
+    await batch.commit();
+  }
+
+  Future<String> uploadShopCoverImage({
+    required String shopId,
+    required XFile image,
+  }) async {
+    final ref = _storage.ref('shop_images/$shopId/shop_cover.jpg');
+    final bytes = await image.readAsBytes();
+
+    await ref.putData(
+      bytes,
+      SettableMetadata(contentType: image.mimeType ?? 'image/jpeg'),
+    );
+
+    final downloadUrl = await ref.getDownloadURL();
+    await _firestore.collection('shops').doc(shopId).set({
+      'imageUrl': downloadUrl,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    return downloadUrl;
   }
 }
 

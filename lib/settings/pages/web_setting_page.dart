@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../web/web_route_paths.dart';
 import '../services/web_setting_service.dart';
@@ -24,18 +25,21 @@ class WebSettingPage extends StatefulWidget {
 class _WebSettingPageState extends State<WebSettingPage> {
   late final WebSettingService _service =
       widget._service ?? WebSettingService();
+  final _imagePicker = ImagePicker();
 
   final _shopNameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _imageUrlController = TextEditingController();
+  final List<_MenuFormEntry> _menuEntries = [];
 
   String? _shopId;
+  String _imageUrl = '';
   String _businessHours = '';
   bool _isWebPublished = false;
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isUploadingImage = false;
   String? _errorMessage;
 
   @override
@@ -50,7 +54,9 @@ class _WebSettingPageState extends State<WebSettingPage> {
     _descriptionController.dispose();
     _addressController.dispose();
     _phoneController.dispose();
-    _imageUrlController.dispose();
+    for (final entry in _menuEntries) {
+      entry.dispose();
+    }
     super.dispose();
   }
 
@@ -67,13 +73,17 @@ class _WebSettingPageState extends State<WebSettingPage> {
         return;
       }
 
+      final menus = await _service.fetchMenus(setting.shopId);
+      if (!mounted) return;
+
       _shopId = setting.shopId;
       _shopNameController.text = setting.shopName;
       _descriptionController.text = setting.description;
       _addressController.text = setting.address;
       _phoneController.text = setting.phone;
-      _imageUrlController.text = setting.imageUrl;
+      _replaceMenuEntries(menus);
       setState(() {
+        _imageUrl = setting.imageUrl;
         _businessHours = setting.businessHours;
         _isWebPublished = setting.isWebPublished;
         _isLoading = false;
@@ -109,10 +119,14 @@ class _WebSettingPageState extends State<WebSettingPage> {
           description: _descriptionController.text,
           address: _addressController.text,
           phone: _phoneController.text,
-          imageUrl: _imageUrlController.text,
+          imageUrl: _imageUrl,
           businessHours: _businessHours,
           isWebPublished: _isWebPublished,
         ),
+      );
+      await _service.saveMenus(
+        shopId: shopId,
+        menus: _menuEntries.map((entry) => entry.toMenuData(shopId)).toList(),
       );
 
       if (!mounted) return;
@@ -129,6 +143,41 @@ class _WebSettingPageState extends State<WebSettingPage> {
     }
   }
 
+  Future<void> _pickAndUploadImage() async {
+    final shopId = _shopId;
+    if (shopId == null || _isUploadingImage) return;
+
+    final pickedImage = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 88,
+    );
+    if (pickedImage == null) return;
+
+    setState(() {
+      _isUploadingImage = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final downloadUrl = await _service.uploadShopCoverImage(
+        shopId: shopId,
+        image: pickedImage,
+      );
+      if (!mounted) return;
+      setState(() => _imageUrl = downloadUrl);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('店舗画像をアップロードしました')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _errorMessage = '店舗画像のアップロードに失敗しました。');
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingImage = false);
+      }
+    }
+  }
+
   Future<void> _copyUrl() async {
     final shopId = _shopId;
     if (shopId == null) return;
@@ -141,6 +190,25 @@ class _WebSettingPageState extends State<WebSettingPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('公開URLをコピーしました')),
     );
+  }
+
+  void _replaceMenuEntries(List<WebSettingMenuData> menus) {
+    for (final entry in _menuEntries) {
+      entry.dispose();
+    }
+    _menuEntries
+      ..clear()
+      ..addAll(menus.map(_MenuFormEntry.fromMenu));
+  }
+
+  void _addMenu() {
+    setState(() => _menuEntries.add(_MenuFormEntry.empty()));
+  }
+
+  void _removeMenu(int index) {
+    final entry = _menuEntries.removeAt(index);
+    entry.dispose();
+    setState(() {});
   }
 
   @override
@@ -223,13 +291,20 @@ class _WebSettingPageState extends State<WebSettingPage> {
                       const SizedBox(height: 16),
                       _BusinessHoursPanel(businessHours: _businessHours),
                       const SizedBox(height: 16),
-                      _TextField(
-                        controller: _imageUrlController,
-                        label: 'メイン画像URL',
-                        icon: Icons.image,
-                        keyboardType: TextInputType.url,
+                      _ImageUploadPanel(
+                        imageUrl: _imageUrl,
+                        isUploading: _isUploadingImage,
+                        onPickImage: _pickAndUploadImage,
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _SettingCard(
+                  child: _MenuSettingSection(
+                    entries: _menuEntries,
+                    onAdd: _addMenu,
+                    onRemove: _removeMenu,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -310,6 +385,72 @@ class _WebSettingPageState extends State<WebSettingPage> {
   }
 }
 
+class _MenuFormEntry {
+  _MenuFormEntry({
+    required this.menuId,
+    required this.createdAt,
+    required String name,
+    required int price,
+    required int duration,
+    required String description,
+  })  : nameController = TextEditingController(text: name),
+        priceController = TextEditingController(
+          text: price == 0 ? '' : price.toString(),
+        ),
+        durationController = TextEditingController(
+          text: duration == 0 ? '' : duration.toString(),
+        ),
+        descriptionController = TextEditingController(text: description);
+
+  factory _MenuFormEntry.empty() {
+    return _MenuFormEntry(
+      menuId: '',
+      createdAt: null,
+      name: '',
+      price: 0,
+      duration: 0,
+      description: '',
+    );
+  }
+
+  factory _MenuFormEntry.fromMenu(WebSettingMenuData menu) {
+    return _MenuFormEntry(
+      menuId: menu.menuId,
+      createdAt: menu.createdAt,
+      name: menu.name,
+      price: menu.price,
+      duration: menu.duration,
+      description: menu.description,
+    );
+  }
+
+  final String menuId;
+  final DateTime? createdAt;
+  final TextEditingController nameController;
+  final TextEditingController priceController;
+  final TextEditingController durationController;
+  final TextEditingController descriptionController;
+
+  WebSettingMenuData toMenuData(String shopId) {
+    return WebSettingMenuData(
+      menuId: menuId,
+      shopId: shopId,
+      name: nameController.text,
+      price: int.tryParse(priceController.text.trim()) ?? 0,
+      duration: int.tryParse(durationController.text.trim()) ?? 0,
+      description: descriptionController.text,
+      createdAt: createdAt,
+    );
+  }
+
+  void dispose() {
+    nameController.dispose();
+    priceController.dispose();
+    durationController.dispose();
+    descriptionController.dispose();
+  }
+}
+
 class _HeaderCard extends StatelessWidget {
   const _HeaderCard();
 
@@ -354,11 +495,258 @@ class _HeaderCard extends StatelessWidget {
                 ),
                 SizedBox(height: 6),
                 Text(
-                  '公開ページを管理できます',
+                  '店舗情報・メニュー・画像を管理できます',
                   style: TextStyle(color: _mutedBrown, fontSize: 14),
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ImageUploadPanel extends StatelessWidget {
+  const _ImageUploadPanel({
+    required this.imageUrl,
+    required this.isUploading,
+    required this.onPickImage,
+  });
+
+  final String imageUrl;
+  final bool isUploading;
+  final VoidCallback onPickImage;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _lightBeige,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _beige.withAlpha(204)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '店舗画像',
+            style: TextStyle(
+              color: _darkBrown,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 12),
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: imageUrl.isEmpty
+                  ? Container(
+                      color: _beige.withAlpha(120),
+                      child: const Center(
+                        child: Icon(Icons.spa, color: Colors.white, size: 54),
+                      ),
+                    )
+                  : Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: _beige.withAlpha(120),
+                        child: const Icon(Icons.broken_image, color: _mutedBrown),
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: isUploading ? null : onPickImage,
+              icon: isUploading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.add_photo_alternate_outlined),
+              label: Text(isUploading ? 'アップロード中...' : '画像選択'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _darkBrown,
+                side: const BorderSide(color: _beige),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '新しい画像を選択すると shop_cover.jpg として上書き保存されます。',
+            style: TextStyle(color: _mutedBrown, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MenuSettingSection extends StatelessWidget {
+  const _MenuSettingSection({
+    required this.entries,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  final List<_MenuFormEntry> entries;
+  final VoidCallback onAdd;
+  final void Function(int index) onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'メニュー管理',
+                    style: TextStyle(
+                      color: _darkBrown,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '公開ページに表示するメニューを追加できます',
+                    style: TextStyle(color: _mutedBrown, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            IconButton.filledTonal(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add),
+              color: _darkBrown,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (entries.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: _lightBeige,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Text(
+              '「＋」ボタンからメニューを追加してください。',
+              style: TextStyle(color: _mutedBrown),
+            ),
+          )
+        else
+          ...entries.indexed.map((item) {
+            final index = item.$1;
+            final entry = item.$2;
+            return Padding(
+              padding: EdgeInsets.only(bottom: index == entries.length - 1 ? 0 : 16),
+              child: _MenuEditorCard(
+                index: index,
+                entry: entry,
+                onRemove: () => onRemove(index),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+}
+
+class _MenuEditorCard extends StatelessWidget {
+  const _MenuEditorCard({
+    required this.index,
+    required this.entry,
+    required this.onRemove,
+  });
+
+  final int index;
+  final _MenuFormEntry entry;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _lightBeige,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _beige.withAlpha(204)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'メニュー ${index + 1}',
+                  style: const TextStyle(
+                    color: _darkBrown,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: onRemove,
+                icon: const Icon(Icons.delete_outline),
+                color: _mutedBrown,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _TextField(
+            controller: entry.nameController,
+            label: 'メニュー名',
+            icon: Icons.spa,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _TextField(
+                  controller: entry.priceController,
+                  label: '料金（円）',
+                  icon: Icons.payments_outlined,
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _TextField(
+                  controller: entry.durationController,
+                  label: '施術時間（分）',
+                  icon: Icons.timer_outlined,
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _TextField(
+            controller: entry.descriptionController,
+            label: '説明',
+            icon: Icons.description_outlined,
+            minLines: 2,
+            maxLines: 4,
           ),
         ],
       ),
@@ -491,7 +879,7 @@ class _TextField extends StatelessWidget {
         labelText: label,
         labelStyle: const TextStyle(color: _mutedBrown),
         filled: true,
-        fillColor: _lightBeige,
+        fillColor: _creamWhite,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
         enabledBorder: OutlineInputBorder(

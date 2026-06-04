@@ -1,86 +1,71 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
-String? get uid => FirebaseAuth.instance.currentUser?.uid;
+import '../services/web_setting_service.dart';
 
 class MenuPage extends StatefulWidget {
-  const MenuPage({super.key});
+  const MenuPage({super.key, WebSettingService? service}) : _service = service;
+
+  final WebSettingService? _service;
 
   @override
   State<MenuPage> createState() => _MenuPageState();
 }
 
 class _MenuPageState extends State<MenuPage> {
+  late final WebSettingService _service =
+      widget._service ?? WebSettingService();
+
   final nameController = TextEditingController();
   final priceController = TextEditingController();
+  final durationController = TextEditingController();
+  final descriptionController = TextEditingController();
 
-  Future<String?> _getShopId() async {
-    if (uid == null) return null;
-
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .get();
-
-    return userDoc.data()?['shopId'];
+  @override
+  void dispose() {
+    nameController.dispose();
+    priceController.dispose();
+    durationController.dispose();
+    descriptionController.dispose();
+    super.dispose();
   }
 
   Future<void> addMenu() async {
-    final shopId = await _getShopId();
+    final shopId = await _service.fetchCurrentShopId();
 
     if (shopId == null) return;
-    if (nameController.text.isEmpty || priceController.text.isEmpty) return;
-
-    await FirebaseFirestore.instance
-        .collection('shops')
-        .doc(shopId)
-        .collection('menus')
-        .add({
-      'name': nameController.text.trim(),
-      'price': int.tryParse(priceController.text.trim()) ?? 0,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    nameController.clear();
-    priceController.clear();
-  }
-
-  Future<void> deleteMenu(String id) async {
-    final shopId = await _getShopId();
-    if (shopId == null) return;
-
-    await FirebaseFirestore.instance
-        .collection('shops')
-        .doc(shopId)
-        .collection('menus')
-        .doc(id)
-        .delete();
-  }
-
-  Stream<QuerySnapshot> menuStream() async* {
-    final shopId = await _getShopId();
-
-    if (shopId == null) {
-      yield* const Stream.empty();
+    if (nameController.text.trim().isEmpty ||
+        priceController.text.trim().isEmpty) {
       return;
     }
 
-    yield* FirebaseFirestore.instance
-        .collection('shops')
-        .doc(shopId)
-        .collection('menus')
-        .orderBy('createdAt', descending: true)
-        .snapshots();
+    await _service.addMenu(
+      shopId: shopId,
+      name: nameController.text,
+      price: int.tryParse(priceController.text.trim()) ?? 0,
+      duration: int.tryParse(durationController.text.trim()) ?? 0,
+      description: descriptionController.text,
+    );
+
+    nameController.clear();
+    priceController.clear();
+    durationController.clear();
+    descriptionController.clear();
+  }
+
+  Future<void> deleteMenu(String id) async {
+    await _service.deleteMenu(id);
+  }
+
+  Stream<List<WebSettingMenuData>> menuStream() {
+    return _service.watchCurrentShopMenus();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("メニュー管理"),
+        title: const Text('メニュー管理'),
       ),
-
       body: Column(
         children: [
           Padding(
@@ -90,60 +75,72 @@ class _MenuPageState extends State<MenuPage> {
                 TextField(
                   controller: nameController,
                   decoration: const InputDecoration(
-                    labelText: "メニュー名",
+                    labelText: 'メニュー名',
                     border: OutlineInputBorder(),
                   ),
                 ),
-
                 const SizedBox(height: 10),
-
                 TextField(
                   controller: priceController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: "料金（円）",
+                    labelText: '料金（円）',
                     border: OutlineInputBorder(),
                   ),
                 ),
-
                 const SizedBox(height: 10),
-
+                TextField(
+                  controller: durationController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: '施術時間（分）',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: descriptionController,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: '説明',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 ElevatedButton(
                   onPressed: addMenu,
-                  child: const Text("追加"),
+                  child: const Text('追加'),
                 ),
               ],
             ),
           ),
-
           const Divider(),
-
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
+            child: StreamBuilder<List<WebSettingMenuData>>(
               stream: menuStream(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final docs = snapshot.data!.docs;
+                final menus = snapshot.data!;
 
-                if (docs.isEmpty) {
-                  return const Center(child: Text("メニューがありません"));
+                if (menus.isEmpty) {
+                  return const Center(child: Text('メニューがありません'));
                 }
 
                 return ListView.builder(
-                  itemCount: docs.length,
+                  itemCount: menus.length,
                   itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    final data = doc.data() as Map<String, dynamic>;
+                    final menu = menus[index];
 
                     return ListTile(
-                      title: Text(data['name'] ?? ''),
-                      subtitle: Text("¥${data['price']}"),
+                      title: Text(menu.name),
+                      subtitle: Text('¥${menu.price} / ${menu.duration}分'),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete),
-                        onPressed: () => deleteMenu(doc.id),
+                        onPressed: () => deleteMenu(menu.menuId),
                       ),
                     );
                   },
