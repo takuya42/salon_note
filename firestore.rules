@@ -18,6 +18,7 @@ service cloud.firestore {
         'shopName',
         'name',
         'description',
+        'address',
         'phone',
         'imageUrl',
         'businessHours',

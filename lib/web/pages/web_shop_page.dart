@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/web_menu.dart';
 import '../providers/web_shop_provider.dart';
@@ -58,33 +59,22 @@ class WebShopPage extends ConsumerWidget {
                     ),
                     const SizedBox(height: 14),
                     _InfoCard(
-                      icon: Icons.location_on_outlined,
+                      icon: Icons.map_outlined,
                       title: '住所',
                       value: shop.address.isEmpty ? '住所は未設定です。' : shop.address,
                     ),
                     const SizedBox(height: 14),
                     _InfoCard(
-                      icon: Icons.schedule,
+                      icon: Icons.access_time_filled_outlined,
                       title: '営業時間',
                       value: shop.businessHours.isEmpty
                           ? '営業時間は未設定です。'
                           : shop.businessHours,
                     ),
                     const SizedBox(height: 14),
-                    _InfoCard(
-                      icon: Icons.phone_outlined,
-                      title: '電話番号',
-                      value: shop.phone.isEmpty ? '電話番号は未設定です。' : shop.phone,
-                    ),
+                    _PhoneCard(phone: shop.phone),
                     const SizedBox(height: 30),
-                    const Text(
-                      'Menu',
-                      style: TextStyle(
-                        color: webDarkBrown,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    const _SectionTitle(label: 'Menu', subLabel: 'メニュー'),
                     const SizedBox(height: 14),
                     ref.watch(webMenusProvider(shop.shopId)).when(
                           data: (menus) => _MenuList(menus: menus),
@@ -138,7 +128,7 @@ class _HeroImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-      height: 300,
+      height: 380,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(34),
@@ -176,6 +166,111 @@ class _HeroPlaceholder extends StatelessWidget {
       ),
       child: const Center(
         child: Icon(Icons.spa, size: 86, color: Colors.white),
+      ),
+    );
+  }
+}
+
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.label, required this.subLabel});
+
+  final String label;
+  final String subLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: webDarkBrown,
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subLabel,
+          style: const TextStyle(
+            color: webGold,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.8,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PhoneCard extends StatelessWidget {
+  const _PhoneCard({required this.phone});
+
+  final String phone;
+
+  @override
+  Widget build(BuildContext context) {
+    final displayPhone = phone.isEmpty ? '電話番号は未設定です。' : phone;
+    final normalizedPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    final canCall = normalizedPhone.isNotEmpty;
+
+    return InkWell(
+      onTap: canCall ? () => launchUrl(Uri(scheme: 'tel', path: normalizedPhone)) : null,
+      borderRadius: BorderRadius.circular(28),
+      child: WebCard(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: webGold.withOpacity(0.20),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(Icons.call_outlined, color: webBrown, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '電話番号',
+                    style: TextStyle(
+                      color: webMuted,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    displayPhone,
+                    style: const TextStyle(
+                      color: webDarkBrown,
+                      fontSize: 16,
+                      height: 1.7,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (canCall) ...[
+                    const SizedBox(height: 6),
+                    const Text(
+                      'タップして電話をかける',
+                      style: TextStyle(color: webGold, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (canCall) const Icon(Icons.chevron_right, color: webMuted),
+          ],
+        ),
       ),
     );
   }
@@ -254,40 +349,61 @@ class _MenuList extends StatelessWidget {
     return Column(
       children: menus.map((menu) {
         return Padding(
-          padding: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.only(bottom: 16),
           child: WebCard(
+            padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Text(
                         menu.name,
                         style: const TextStyle(
                           color: webDarkBrown,
-                          fontSize: 17,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 9,
+                      ),
+                      decoration: BoxDecoration(
+                        color: webGold.withOpacity(0.16),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '¥${_formatNumber(menu.price)}',
+                        style: const TextStyle(
+                          color: webBrown,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Icon(Icons.timer_outlined, size: 18, color: webGold),
+                    const SizedBox(width: 8),
                     Text(
-                      '¥${menu.price}',
+                      '${menu.duration}分',
                       style: const TextStyle(
-                        color: webBrown,
+                        color: webMuted,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '${menu.duration}分',
-                  style: const TextStyle(color: webMuted),
-                ),
                 if (menu.description.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Text(
                     menu.description,
                     style: const TextStyle(color: webMuted, height: 1.6),
@@ -300,6 +416,13 @@ class _MenuList extends StatelessWidget {
       }).toList(),
     );
   }
+}
+
+String _formatNumber(int value) {
+  return value.toString().replaceAllMapped(
+        RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+        (match) => '${match[1]},',
+      );
 }
 
 class _NotFoundContent extends StatelessWidget {
