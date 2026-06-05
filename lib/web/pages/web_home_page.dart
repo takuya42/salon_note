@@ -100,10 +100,7 @@ class WebHomePage extends ConsumerWidget {
                   ),
                 ),
               ),
-              error: (error, stack) {
-                debugPrint('ERROR => $error');
-                debugPrint('STACK => $stack');
-
+              error: (error, _) {
                 return WebCard(
                   child: Column(
                     children: [
@@ -231,15 +228,7 @@ class _ShopImage extends StatelessWidget {
         child: Image.network(
           imageUrl,
           fit: BoxFit.cover,
-          loadingBuilder: (context, child, progress) {
-            debugPrint('DIRECT IMAGE URL => $imageUrl');
-            return child;
-          },
-          errorBuilder: (context, error, stackTrace) {
-            debugPrint('DIRECT IMAGE ERROR => $error');
-            debugPrintStack(stackTrace: stackTrace);
-            return placeholder;
-          },
+          errorBuilder: (_, __, ___) => placeholder,
         ),
       ),
     );

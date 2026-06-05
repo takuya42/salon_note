@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -22,10 +21,6 @@ void main() {
 
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
-    );
-
-    debugPrint(
-      'FIREBASE STORAGE BUCKET => ${FirebaseStorage.instance.ref().bucket}',
     );
 
     if (kIsWeb) {
