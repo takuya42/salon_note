@@ -39,3 +39,31 @@
 - 顧客管理機能
 - 月別売上グラフ
 - サブスクリプション機能（広告なしプラン）
+
+---
+
+## Web予約のPush通知（FCM）
+
+Web予約が作成されると、`asia-northeast2` のCloud Functionsが店舗の`ownerId`を参照し、
+`users/{uid}`に保存されたFCMトークンへ通知を送信します。アプリは単一端末用の
+`fcmToken`と複数端末用の`fcmTokens`を保存し、通知タップ時に予約一覧を開きます。
+
+### Firebase設定
+
+1. Firebase ConsoleでCloud Messagingを有効にします。
+2. iOSアプリではApple DeveloperとXcodeでPush Notifications capabilityを有効にし、
+   Firebase ConsoleへAPNs認証キーを登録します。
+3. Android 13以降ではアプリ内の通知権限要求を許可します。
+4. FunctionsとFirestore Rulesをデプロイします。
+
+```bash
+cd functions
+npm install
+npm test
+npm run lint
+cd ..
+npx -y firebase-tools@latest deploy --only functions:notifyOwnerOfWebReservation,firestore:rules
+```
+
+iOSのAPNs通知はシミュレータではなく実機で確認してください。リリース署名時には、
+署名済みアプリの`aps-environment`が`production`になっていることも確認してください。

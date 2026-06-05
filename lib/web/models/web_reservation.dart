@@ -7,6 +7,7 @@ class WebReservation {
     required this.menuId,
     required this.customerName,
     required this.customerPhone,
+    required this.customerEmail,
     required this.reservationDateTime,
     required this.status,
     required this.source,
@@ -19,6 +20,7 @@ class WebReservation {
   final String menuId;
   final String customerName;
   final String customerPhone;
+  final String customerEmail;
   final DateTime reservationDateTime;
   final String status;
   final String source;
@@ -37,6 +39,8 @@ class WebReservation {
       menuId: (data['menuId'] as String?) ?? '',
       customerName: (data['customerName'] as String?) ?? '',
       customerPhone: (data['customerPhone'] as String?) ?? '',
+      // Older reservations do not have customerEmail. Keep reads compatible.
+      customerEmail: (data['customerEmail'] as String?) ?? '',
       reservationDateTime:
           ((data['reservationDateTime'] as Timestamp?) ?? Timestamp.now())
               .toDate(),
@@ -54,6 +58,7 @@ class WebReservation {
       'menuId': menuId,
       'customerName': customerName,
       'customerPhone': customerPhone,
+      'customerEmail': customerEmail,
       'reservationDateTime': Timestamp.fromDate(reservationDateTime),
       'status': status,
       'source': source,

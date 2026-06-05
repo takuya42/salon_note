@@ -11,6 +11,7 @@ void main() {
         menuId: 'menu-1',
         customerName: 'Test Customer',
         customerPhone: '09012345678',
+        customerEmail: 'customer@example.com',
         reservationDateTime: DateTime.utc(2026, 6, 6, 10),
         status: 'pending',
         source: 'web',
@@ -23,6 +24,7 @@ void main() {
       final data = reservation().toFirestore();
 
       expect(data['createdAt'], isA<FieldValue>());
+      expect(data['customerEmail'], 'customer@example.com');
     });
 
     test('does not serialize a client-generated createdAt', () {
