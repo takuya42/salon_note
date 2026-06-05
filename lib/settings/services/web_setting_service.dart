@@ -122,48 +122,79 @@ class WebSettingService {
   }
 
   Future<WebSettingData?> fetchCurrentSetting() async {
-    final shopId = await fetchCurrentShopId();
-    if (shopId == null) return null;
+    debugPrint('WEB SETTING LOAD START');
 
-    final shopDoc = await _firestore.collection('shops').doc(shopId).get();
-    if (!shopDoc.exists) return null;
+    try {
+      final shopId = await fetchCurrentShopId();
+      if (shopId == null) {
+        debugPrint('WEB SETTING LOAD SUCCESS');
+        return null;
+      }
 
-    final businessDoc = await _firestore
-        .collection('shops')
-        .doc(shopId)
-        .collection('settings')
-        .doc('business')
-        .get();
+      final shopDoc = await _firestore.collection('shops').doc(shopId).get();
+      if (!shopDoc.exists) {
+        debugPrint('WEB SETTING LOAD SUCCESS');
+        return null;
+      }
 
-    return WebSettingData.fromFirestore(
-      shopId,
-      shopDoc.data() ?? <String, dynamic>{},
-      businessDoc.data(),
-    );
+      final businessDoc = await _firestore
+          .collection('shops')
+          .doc(shopId)
+          .collection('settings')
+          .doc('business')
+          .get();
+
+      final setting = WebSettingData.fromFirestore(
+        shopId,
+        shopDoc.data() ?? <String, dynamic>{},
+        businessDoc.data(),
+      );
+
+      debugPrint('WEB SETTING LOAD SUCCESS');
+      return setting;
+    } catch (error, stackTrace) {
+      debugPrint('WEB SETTING LOAD ERROR => $error');
+      debugPrintStack(stackTrace: stackTrace);
+      rethrow;
+    }
   }
 
   Future<List<WebSettingMenuData>> fetchMenus(String shopId) async {
-    final snapshot = await _menusRef
-        .where('shopId', isEqualTo: shopId)
-        .orderBy('createdAt')
-        .get();
+    try {
+      final snapshot = await _menusRef
+          .where('shopId', isEqualTo: shopId)
+          .orderBy('createdAt')
+          .get();
 
-    return snapshot.docs.map(WebSettingMenuData.fromFirestore).toList();
+      return snapshot.docs.map(WebSettingMenuData.fromFirestore).toList();
+    } catch (error) {
+      debugPrint('MENU LOAD ERROR => $error');
+      rethrow;
+    }
   }
 
   Stream<List<WebSettingMenuData>> watchCurrentShopMenus() async* {
-    final shopId = await fetchCurrentShopId();
-    if (shopId == null) {
-      yield const <WebSettingMenuData>[];
-      return;
-    }
+    try {
+      final shopId = await fetchCurrentShopId();
+      if (shopId == null) {
+        yield const <WebSettingMenuData>[];
+        return;
+      }
 
-    yield* _menusRef
-        .where('shopId', isEqualTo: shopId)
-        .orderBy('createdAt')
-        .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map(WebSettingMenuData.fromFirestore).toList());
+      yield* _menusRef
+          .where('shopId', isEqualTo: shopId)
+          .orderBy('createdAt')
+          .snapshots()
+          .map((snapshot) =>
+              snapshot.docs.map(WebSettingMenuData.fromFirestore).toList())
+          .handleError((Object error) {
+        debugPrint('MENU LOAD ERROR => $error');
+        throw error;
+      });
+    } catch (error) {
+      debugPrint('MENU LOAD ERROR => $error');
+      rethrow;
+    }
   }
 
   Future<void> addMenu({
