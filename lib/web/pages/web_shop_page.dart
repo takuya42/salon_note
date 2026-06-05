@@ -83,12 +83,9 @@ class WebShopPage extends ConsumerWidget {
                           loading: () => const WebCard(
                             child: Center(child: CircularProgressIndicator()),
                           ),
-                          error: (error, _) {
-                            debugPrint('MENU ERROR => $error');
-                            return const WebCard(
-                              child: Text('メニューの読み込みに失敗しました。'),
-                            );
-                          },
+                          error: (_, __) => const WebCard(
+                            child: Text('メニューの読み込みに失敗しました。'),
+                          ),
                         ),
                     const SizedBox(height: 30),
                     DecoratedBox(
@@ -150,15 +147,7 @@ class _HeroImage extends StatelessWidget {
       child: Image.network(
         imageUrl,
         fit: BoxFit.cover,
-        loadingBuilder: (context, child, progress) {
-          debugPrint('DIRECT IMAGE URL => $imageUrl');
-          return child;
-        },
-        errorBuilder: (context, error, stackTrace) {
-          debugPrint('DIRECT IMAGE ERROR => $error');
-          debugPrintStack(stackTrace: stackTrace);
-          return placeholder;
-        },
+        errorBuilder: (_, __, ___) => placeholder,
       ),
     );
   }

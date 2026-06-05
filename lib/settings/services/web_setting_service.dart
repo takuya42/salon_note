@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
 class WebSettingData {
@@ -122,79 +121,54 @@ class WebSettingService {
   }
 
   Future<WebSettingData?> fetchCurrentSetting() async {
-    debugPrint('WEB SETTING LOAD START');
-
-    try {
-      final shopId = await fetchCurrentShopId();
-      if (shopId == null) {
-        debugPrint('WEB SETTING LOAD SUCCESS');
-        return null;
-      }
-
-      final shopDoc = await _firestore.collection('shops').doc(shopId).get();
-      if (!shopDoc.exists) {
-        debugPrint('WEB SETTING LOAD SUCCESS');
-        return null;
-      }
-
-      final businessDoc = await _firestore
-          .collection('shops')
-          .doc(shopId)
-          .collection('settings')
-          .doc('business')
-          .get();
-
-      final setting = WebSettingData.fromFirestore(
-        shopId,
-        shopDoc.data() ?? <String, dynamic>{},
-        businessDoc.data(),
-      );
-
-      debugPrint('WEB SETTING LOAD SUCCESS');
-      return setting;
-    } catch (error, stackTrace) {
-      debugPrint('WEB SETTING LOAD ERROR => $error');
-      debugPrintStack(stackTrace: stackTrace);
-      rethrow;
+    final shopId = await fetchCurrentShopId();
+    if (shopId == null) {
+      return null;
     }
+
+    final shopDoc = await _firestore.collection('shops').doc(shopId).get();
+    if (!shopDoc.exists) {
+      return null;
+    }
+
+    final businessDoc = await _firestore
+        .collection('shops')
+        .doc(shopId)
+        .collection('settings')
+        .doc('business')
+        .get();
+
+    final setting = WebSettingData.fromFirestore(
+      shopId,
+      shopDoc.data() ?? <String, dynamic>{},
+      businessDoc.data(),
+    );
+
+    return setting;
   }
 
   Future<List<WebSettingMenuData>> fetchMenus(String shopId) async {
-    try {
-      final snapshot = await _menusRef.where('shopId', isEqualTo: shopId).get();
+    final snapshot = await _menusRef.where('shopId', isEqualTo: shopId).get();
 
-      return snapshot.docs
-          .map(WebSettingMenuData.fromFirestore)
-          .toList()
-        ..sort(_compareMenusByCreatedAtAndMenuId);
-    } catch (error) {
-      debugPrint('MENU LOAD ERROR => $error');
-      rethrow;
-    }
+    return snapshot.docs
+        .map(WebSettingMenuData.fromFirestore)
+        .toList()
+      ..sort(_compareMenusByCreatedAtAndMenuId);
   }
 
   Stream<List<WebSettingMenuData>> watchCurrentShopMenus() async* {
-    try {
-      final shopId = await fetchCurrentShopId();
-      if (shopId == null) {
-        yield const <WebSettingMenuData>[];
-        return;
-      }
-
-      yield* _menusRef.where('shopId', isEqualTo: shopId).snapshots().map(
-            (snapshot) => snapshot.docs
-                .map(WebSettingMenuData.fromFirestore)
-                .toList()
-              ..sort(_compareMenusByCreatedAtAndMenuId),
-          )
-          .handleError((Object error) {
-        debugPrint('MENU LOAD ERROR => $error');
-        throw error;
-      });
-    } catch (error) {
-      debugPrint('MENU LOAD ERROR => $error');
-      rethrow;
+    final shopId = await fetchCurrentShopId();
+    if (shopId == null) {
+      yield const <WebSettingMenuData>[];
+      return;
     }
+
+    yield* _menusRef.where('shopId', isEqualTo: shopId).snapshots().map(
+          (snapshot) => snapshot.docs
+              .map(WebSettingMenuData.fromFirestore)
+              .toList()
+            ..sort(_compareMenusByCreatedAtAndMenuId),
+        );
   }
 
   static int _compareMenusByCreatedAtAndMenuId(
@@ -305,40 +279,24 @@ class WebSettingService {
     required String shopId,
     required XFile image,
   }) async {
-    try {
-      debugPrint('STORAGE UPLOAD START => $shopId');
-      debugPrint('STORAGE BUCKET => ${_storage.ref().bucket}');
+    final ref = _storage.ref('shop_images/$shopId/shop_cover.jpg');
+    final bytes = await image.readAsBytes();
 
-      final ref = _storage.ref('shop_images/$shopId/shop_cover.jpg');
-      debugPrint('STORAGE REF FULL PATH => ${ref.fullPath}');
-      final bytes = await image.readAsBytes();
+    await ref.putData(
+      bytes,
+      SettableMetadata(contentType: image.mimeType ?? 'image/jpeg'),
+    );
 
-      await ref.putData(
-        bytes,
-        SettableMetadata(contentType: image.mimeType ?? 'image/jpeg'),
-      );
+    final downloadUrl = await ref.getDownloadURL();
 
-      debugPrint('STORAGE PUT SUCCESS');
+    await _firestore.collection('shops').doc(shopId).set({
+      'imageUrl': downloadUrl,
+      'imagePath': ref.fullPath,
+      'imageBucket': ref.bucket,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
-      final downloadUrl = await ref.getDownloadURL();
-      debugPrint('STORAGE URL => $downloadUrl');
-
-      await _firestore.collection('shops').doc(shopId).set({
-        'imageUrl': downloadUrl,
-        'imagePath': ref.fullPath,
-        'imageBucket': ref.bucket,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      debugPrint('FIRESTORE IMAGE URL SAVED');
-      debugPrint('FIRESTORE IMAGE PATH SAVED => ${ref.fullPath}');
-
-      return downloadUrl;
-    } catch (error, stackTrace) {
-      debugPrint('STORAGE ERROR => $error');
-      debugPrintStack(stackTrace: stackTrace);
-      rethrow;
-    }
+    return downloadUrl;
   }
 }
 
