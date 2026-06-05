@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/web_reservation.dart';
 import 'web_reservation_extension_service.dart';
@@ -15,48 +16,67 @@ class WebBookingService {
   final WebReservationExtensionService _extensionService;
 
   Future<String> createReservation(WebReservation reservation) async {
-    final reservationsRef = _firestore
-        .collection('shops')
-        .doc(reservation.shopId)
-        .collection('reservations');
-    final docRef = reservation.reservationId.isEmpty
-        ? reservationsRef.doc()
-        : reservationsRef.doc(reservation.reservationId);
+    debugPrint('WEB BOOKING DATA');
+    debugPrint('shopId => ${reservation.shopId}');
+    debugPrint('menuId => ${reservation.menuId}');
+    debugPrint('customerName => ${reservation.customerName}');
+    debugPrint('customerPhone => ${reservation.customerPhone}');
+    debugPrint('reservationDateTime => ${reservation.reservationDateTime}');
 
-    final reservationWithId = WebReservation(
-      reservationId: docRef.id,
-      shopId: reservation.shopId,
-      menuId: reservation.menuId,
-      customerName: reservation.customerName,
-      customerPhone: reservation.customerPhone,
-      reservationDateTime: reservation.reservationDateTime,
-      status: reservation.status,
-      source: reservation.source,
-      isNotified: reservation.isNotified,
-      createdAt: reservation.createdAt,
-    );
+    try {
+      final reservationsRef = _firestore
+          .collection('shops')
+          .doc(reservation.shopId)
+          .collection('reservations');
+      final docRef = reservation.reservationId.isEmpty
+          ? reservationsRef.doc()
+          : reservationsRef.doc(reservation.reservationId);
 
-    final menu = await _fetchMenu(reservationWithId.shopId, reservationWithId.menuId);
-    final menuName = (menu?['name'] as String?)?.trim();
-    final menuPrice = (menu?['price'] as num?)?.toInt();
-    final menuDuration = (menu?['duration'] as num?)?.toInt() ?? 60;
-    final start = reservationWithId.reservationDateTime;
-    await docRef.set({
-      ...reservationWithId.toFirestore(),
-      // Existing in-app reservation calendar and detail views read these fields.
-      'name': reservationWithId.customerName,
-      'phone': reservationWithId.customerPhone,
-      'menu': menuName == null || menuName.isEmpty
-          ? reservationWithId.menuId
-          : menuName,
-      'price': menuPrice ?? 0,
-      'duration': menuDuration,
-      'date': Timestamp.fromDate(start),
-      'start': Timestamp.fromDate(start),
-      'end': Timestamp.fromDate(start.add(Duration(minutes: menuDuration))),
-    });
-    await _extensionService.onReservationCreated(reservationWithId);
-    return docRef.id;
+      final reservationWithId = WebReservation(
+        reservationId: docRef.id,
+        shopId: reservation.shopId,
+        menuId: reservation.menuId,
+        customerName: reservation.customerName,
+        customerPhone: reservation.customerPhone,
+        reservationDateTime: reservation.reservationDateTime,
+        status: reservation.status,
+        source: reservation.source,
+        isNotified: reservation.isNotified,
+        createdAt: reservation.createdAt,
+      );
+
+      final menu = await _fetchMenu(
+        reservationWithId.shopId,
+        reservationWithId.menuId,
+      );
+      final menuName = (menu?['name'] as String?)?.trim();
+      final menuPrice = (menu?['price'] as num?)?.toInt();
+      final menuDuration = (menu?['duration'] as num?)?.toInt() ?? 60;
+      final start = reservationWithId.reservationDateTime;
+      await docRef.set({
+        ...reservationWithId.toFirestore(),
+        // Existing in-app reservation calendar and detail views read these fields.
+        'name': reservationWithId.customerName,
+        'phone': reservationWithId.customerPhone,
+        'menu': menuName == null || menuName.isEmpty
+            ? reservationWithId.menuId
+            : menuName,
+        'price': menuPrice ?? 0,
+        'duration': menuDuration,
+        'date': Timestamp.fromDate(start),
+        'start': Timestamp.fromDate(start),
+        'end': Timestamp.fromDate(
+          start.add(Duration(minutes: menuDuration)),
+        ),
+      });
+      await _extensionService.onReservationCreated(reservationWithId);
+      debugPrint('WEB BOOKING SUCCESS');
+      return docRef.id;
+    } catch (error, stackTrace) {
+      debugPrint('WEB BOOKING ERROR => $error');
+      debugPrintStack(stackTrace: stackTrace);
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>?> _fetchMenu(String shopId, String menuId) async {

@@ -100,6 +100,26 @@ class WebShopPage extends ConsumerWidget {
                     ),
                     const SizedBox(height: 14),
                     _PhoneCard(phone: shop.phone),
+                    if (shop.paymentMethods.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      _InfoCard(
+                        icon: Icons.payments_outlined,
+                        title: '支払い方法',
+                        value: shop.paymentMethods.join(' / '),
+                      ),
+                    ],
+                    if (shop.externalLinkUrl.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      _InfoCard(
+                        icon: Icons.open_in_new,
+                        title: '外部リンク',
+                        value: shop.externalLinkTitle.isEmpty
+                            ? '外部サイト'
+                            : shop.externalLinkTitle,
+                        onTap: () => _openExternalUrl(shop.externalLinkUrl),
+                        actionLabel: '新しいタブで開く',
+                      ),
+                    ],
                     _ShopLinks(shop: shop),
                     const SizedBox(height: 30),
                     const _SectionTitle(label: 'Menu', subLabel: 'メニュー'),
@@ -108,6 +128,7 @@ class WebShopPage extends ConsumerWidget {
                           data: (menus) => _MenuList(
                             menus: menus,
                             shopId: shop.shopId,
+                            isWebBookingEnabled: shop.isWebBookingEnabled,
                           ),
                           loading: () => const WebCard(
                             child: Center(child: CircularProgressIndicator()),
@@ -116,25 +137,27 @@ class WebShopPage extends ConsumerWidget {
                             child: Text('メニューの読み込みに失敗しました。'),
                           ),
                         ),
-                    const SizedBox(height: 30),
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        boxShadow: [
-                          BoxShadow(
-                            color: webBrown.withOpacity(0.20),
-                            blurRadius: 28,
-                            offset: const Offset(0, 12),
+                    if (shop.isWebBookingEnabled) ...[
+                      const SizedBox(height: 30),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          boxShadow: [
+                            BoxShadow(
+                              color: webBrown.withOpacity(0.20),
+                              blurRadius: 28,
+                              offset: const Offset(0, 12),
+                            ),
+                          ],
+                        ),
+                        child: WebPrimaryButton(
+                          label: 'このサロンを予約する',
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            WebRoutePaths.booking(shop.shopId),
                           ),
-                        ],
-                      ),
-                      child: WebPrimaryButton(
-                        label: 'このサロンを予約する',
-                        onPressed: () => Navigator.pushNamed(
-                          context,
-                          WebRoutePaths.booking(shop.shopId),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -434,10 +457,15 @@ class _ShopLinks extends StatelessWidget {
 }
 
 class _MenuList extends StatelessWidget {
-  const _MenuList({required this.menus, required this.shopId});
+  const _MenuList({
+    required this.menus,
+    required this.shopId,
+    required this.isWebBookingEnabled,
+  });
 
   final List<WebMenu> menus;
   final String shopId;
+  final bool isWebBookingEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -508,22 +536,24 @@ class _MenuList extends StatelessWidget {
                     style: const TextStyle(color: webMuted, height: 1.6),
                   ),
                 ],
-                const SizedBox(height: 18),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _confirmMenuBooking(context, menu),
-                    icon: const Icon(Icons.event_available),
-                    label: const Text('予約する'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: webBrown,
-                      side: const BorderSide(color: webGold),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
+                if (isWebBookingEnabled) ...[
+                  const SizedBox(height: 18),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _confirmMenuBooking(context, menu),
+                      icon: const Icon(Icons.event_available),
+                      label: const Text('予約する'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: webBrown,
+                        side: const BorderSide(color: webGold),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(999),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ),

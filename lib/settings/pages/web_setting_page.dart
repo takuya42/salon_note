@@ -11,6 +11,15 @@ const _creamWhite = Color(0xFFFFFCF8);
 const _darkBrown = Color(0xFF5A463A);
 const _mutedBrown = Color(0xFF8A7468);
 const _backgroundColor = Color(0xFFF6EFE8);
+const _paymentMethodOptions = <String>[
+  '現金',
+  'クレジットカード',
+  'PayPay',
+  '楽天Pay',
+  'd払い',
+  'au PAY',
+  'その他',
+];
 
 class WebSettingPage extends StatefulWidget {
   const WebSettingPage({super.key, WebSettingService? service})
@@ -31,12 +40,16 @@ class _WebSettingPageState extends State<WebSettingPage> {
   final _descriptionController = TextEditingController();
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _externalLinkTitleController = TextEditingController();
+  final _externalLinkUrlController = TextEditingController();
   final List<_MenuFormEntry> _menuEntries = [];
 
   String? _shopId;
   String _imageUrl = '';
   String _businessHours = '';
+  final Set<String> _paymentMethods = <String>{};
   bool _isWebPublished = false;
+  bool _isWebBookingEnabled = false;
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isUploadingImage = false;
@@ -55,6 +68,8 @@ class _WebSettingPageState extends State<WebSettingPage> {
     _descriptionController.dispose();
     _addressController.dispose();
     _phoneController.dispose();
+    _externalLinkTitleController.dispose();
+    _externalLinkUrlController.dispose();
     for (final entry in _menuEntries) {
       entry.dispose();
     }
@@ -82,11 +97,17 @@ class _WebSettingPageState extends State<WebSettingPage> {
       _descriptionController.text = setting.description;
       _addressController.text = setting.address;
       _phoneController.text = setting.phone;
+      _externalLinkTitleController.text = setting.externalLinkTitle;
+      _externalLinkUrlController.text = setting.externalLinkUrl;
+      _paymentMethods
+        ..clear()
+        ..addAll(setting.paymentMethods);
       _replaceMenuEntries(menus);
       setState(() {
         _imageUrl = setting.imageUrl;
         _businessHours = setting.businessHours;
         _isWebPublished = setting.isWebPublished;
+        _isWebBookingEnabled = setting.isWebBookingEnabled;
         _isLoading = false;
       });
     } catch (error, stackTrace) {
@@ -127,7 +148,13 @@ class _WebSettingPageState extends State<WebSettingPage> {
           phone: _phoneController.text,
           imageUrl: _imageUrl,
           businessHours: _businessHours,
+          externalLinkTitle: _externalLinkTitleController.text,
+          externalLinkUrl: _externalLinkUrlController.text,
+          paymentMethods: _paymentMethodOptions
+              .where(_paymentMethods.contains)
+              .toList(),
           isWebPublished: _isWebPublished,
+          isWebBookingEnabled: _isWebBookingEnabled,
         ),
       );
       await _service.saveMenus(
@@ -286,6 +313,27 @@ class _WebSettingPageState extends State<WebSettingPage> {
                 ),
                 const SizedBox(height: 16),
                 _SettingCard(
+                  child: SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    activeColor: _darkBrown,
+                    title: const Text(
+                      'Web予約を受け付ける',
+                      style: TextStyle(
+                        color: _darkBrown,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'オンのときだけ公開ページから予約を保存できます',
+                    ),
+                    value: _isWebBookingEnabled,
+                    onChanged: (value) {
+                      setState(() => _isWebBookingEnabled = value);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _SettingCard(
                   child: Column(
                     children: [
                       _TextField(
@@ -326,6 +374,55 @@ class _WebSettingPageState extends State<WebSettingPage> {
                         onPickImage: _pickAndUploadImage,
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _SettingCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '外部リンク',
+                        style: TextStyle(
+                          color: _darkBrown,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'URLが未入力の場合、公開ページには表示されません。',
+                        style: TextStyle(color: _mutedBrown),
+                      ),
+                      const SizedBox(height: 16),
+                      _TextField(
+                        controller: _externalLinkTitleController,
+                        label: 'リンク名',
+                        icon: Icons.label_outline,
+                      ),
+                      const SizedBox(height: 16),
+                      _TextField(
+                        controller: _externalLinkUrlController,
+                        label: 'URL',
+                        icon: Icons.link,
+                        keyboardType: TextInputType.url,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _SettingCard(
+                  child: _PaymentMethodSection(
+                    selectedMethods: _paymentMethods,
+                    onChanged: (method, selected) {
+                      setState(() {
+                        if (selected) {
+                          _paymentMethods.add(method);
+                        } else {
+                          _paymentMethods.remove(method);
+                        }
+                      });
+                    },
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -672,6 +769,49 @@ class _ImageUploadPanel extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PaymentMethodSection extends StatelessWidget {
+  const _PaymentMethodSection({
+    required this.selectedMethods,
+    required this.onChanged,
+  });
+
+  final Set<String> selectedMethods;
+  final void Function(String method, bool selected) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '支払い方法',
+          style: TextStyle(
+            color: _darkBrown,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          '利用できる支払い方法を複数選択できます。',
+          style: TextStyle(color: _mutedBrown),
+        ),
+        const SizedBox(height: 12),
+        ..._paymentMethodOptions.map(
+          (method) => CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            activeColor: _darkBrown,
+            title: Text(method),
+            value: selectedMethods.contains(method),
+            onChanged: (value) => onChanged(method, value ?? false),
+          ),
+        ),
+      ],
     );
   }
 }

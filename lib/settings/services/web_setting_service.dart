@@ -12,7 +12,11 @@ class WebSettingData {
     required this.phone,
     required this.imageUrl,
     required this.businessHours,
+    required this.externalLinkTitle,
+    required this.externalLinkUrl,
+    required this.paymentMethods,
     required this.isWebPublished,
+    required this.isWebBookingEnabled,
   });
 
   final String shopId;
@@ -22,7 +26,11 @@ class WebSettingData {
   final String phone;
   final String imageUrl;
   final String businessHours;
+  final String externalLinkTitle;
+  final String externalLinkUrl;
+  final List<String> paymentMethods;
   final bool isWebPublished;
+  final bool isWebBookingEnabled;
 
   factory WebSettingData.fromFirestore(
     String shopId,
@@ -41,7 +49,19 @@ class WebSettingData {
       businessHours: _BusinessHoursFormatter.format(businessData) ??
           (shopData['businessHours'] as String?) ??
           '',
+      externalLinkTitle:
+          ((shopData['externalLinkTitle'] as String?) ?? '').trim(),
+      externalLinkUrl:
+          ((shopData['externalLinkUrl'] as String?) ?? '').trim(),
+      paymentMethods: (shopData['paymentMethods'] as List<dynamic>?)
+              ?.whereType<String>()
+              .map((method) => method.trim())
+              .where((method) => method.isNotEmpty)
+              .toList() ??
+          const <String>[],
       isWebPublished: (shopData['isWebPublished'] as bool?) ?? false,
+      isWebBookingEnabled:
+          (shopData['isWebBookingEnabled'] as bool?) ?? false,
     );
   }
 }
@@ -225,7 +245,11 @@ class WebSettingService {
       'phone': setting.phone.trim(),
       'imageUrl': setting.imageUrl.trim(),
       'businessHours': setting.businessHours.trim(),
+      'externalLinkTitle': setting.externalLinkTitle.trim(),
+      'externalLinkUrl': setting.externalLinkUrl.trim(),
+      'paymentMethods': setting.paymentMethods,
       'isWebPublished': setting.isWebPublished,
+      'isWebBookingEnabled': setting.isWebBookingEnabled,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
