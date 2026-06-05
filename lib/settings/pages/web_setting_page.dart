@@ -41,6 +41,7 @@ class _WebSettingPageState extends State<WebSettingPage> {
   bool _isSaving = false;
   bool _isUploadingImage = false;
   String? _errorMessage;
+  Object? _loadErrorDetail;
 
   @override
   void initState() {
@@ -88,10 +89,14 @@ class _WebSettingPageState extends State<WebSettingPage> {
         _isWebPublished = setting.isWebPublished;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('WEB SETTING PAGE LOAD ERROR => $error');
+      debugPrintStack(stackTrace: stackTrace);
+
       if (!mounted) return;
       setState(() {
         _errorMessage = 'Web公開設定の読み込みに失敗しました。';
+        _loadErrorDetail = error;
         _isLoading = false;
       });
     }
@@ -109,6 +114,7 @@ class _WebSettingPageState extends State<WebSettingPage> {
     setState(() {
       _isSaving = true;
       _errorMessage = null;
+      _loadErrorDetail = null;
     });
 
     try {
@@ -164,6 +170,7 @@ class _WebSettingPageState extends State<WebSettingPage> {
     setState(() {
       _isUploadingImage = true;
       _errorMessage = null;
+      _loadErrorDetail = null;
     });
 
     try {
@@ -253,7 +260,10 @@ class _WebSettingPageState extends State<WebSettingPage> {
                 const _HeaderCard(),
                 const SizedBox(height: 20),
                 if (_errorMessage != null) ...[
-                  _ErrorCard(message: _errorMessage!),
+                  _ErrorCard(
+                    message: _errorMessage!,
+                    detail: _loadErrorDetail,
+                  ),
                   const SizedBox(height: 16),
                 ],
                 _SettingCard(
@@ -903,19 +913,35 @@ class _SettingCard extends StatelessWidget {
 }
 
 class _ErrorCard extends StatelessWidget {
-  const _ErrorCard({required this.message});
+  const _ErrorCard({required this.message, this.detail});
 
   final String message;
+  final Object? detail;
 
   @override
   Widget build(BuildContext context) {
+    final detail = this.detail;
+
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF0F0),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Text(message, style: const TextStyle(color: Colors.redAccent)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(message, style: const TextStyle(color: Colors.redAccent)),
+          if (detail != null) ...[
+            const SizedBox(height: 8),
+            SelectableText(
+              '例外: $detail',
+              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

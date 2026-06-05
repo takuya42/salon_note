@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../services/web_setting_service.dart';
@@ -120,6 +121,20 @@ class _MenuPageState extends State<MenuPage> {
             child: StreamBuilder<List<WebSettingMenuData>>(
               stream: menuStream(),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  debugPrint('MENU LOAD ERROR => ${snapshot.error}');
+
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: SelectableText(
+                        'メニューの読み込みに失敗しました。\n例外: ${snapshot.error}',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
+
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
