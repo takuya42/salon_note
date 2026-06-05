@@ -58,9 +58,9 @@ class WebReservation {
       'status': status,
       'source': source,
       'isNotified': isNotified,
-      'createdAt': createdAt == null
-          ? FieldValue.serverTimestamp()
-          : Timestamp.fromDate(createdAt!),
+      // Reservation creation rules require this value to equal request.time.
+      // Never serialize a client-provided DateTime for a create payload.
+      'createdAt': FieldValue.serverTimestamp(),
     };
   }
 }

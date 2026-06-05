@@ -53,7 +53,7 @@ class WebBookingService {
       final menuPrice = (menu?['price'] as num?)?.toInt();
       final menuDuration = (menu?['duration'] as num?)?.toInt() ?? 60;
       final start = reservationWithId.reservationDateTime;
-      await docRef.set({
+      final data = <String, dynamic>{
         ...reservationWithId.toFirestore(),
         // Existing in-app reservation calendar and detail views read these fields.
         'name': reservationWithId.customerName,
@@ -68,7 +68,25 @@ class WebBookingService {
         'end': Timestamp.fromDate(
           start.add(Duration(minutes: menuDuration)),
         ),
-      });
+      };
+
+      debugPrint('WEB BOOKING PAYLOAD => $data');
+      for (final field in const <String>[
+        'price',
+        'duration',
+        'createdAt',
+        'start',
+        'end',
+        'date',
+      ]) {
+        final value = data[field];
+        debugPrint(
+          'WEB BOOKING PAYLOAD TYPE $field => ${value.runtimeType} '
+          '(value: $value)',
+        );
+      }
+
+      await docRef.set(data);
       await _extensionService.onReservationCreated(reservationWithId);
       debugPrint('WEB BOOKING SUCCESS');
       return docRef.id;
