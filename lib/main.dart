@@ -12,8 +12,11 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 import 'firebase_options.dart';
+import 'services/push_notification_service.dart';
 import 'web/web_router.dart';
 import 'web/web_url_strategy.dart';
+
+final rootNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
   runZonedGuarded(() async {
@@ -22,6 +25,10 @@ void main() {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    if (!kIsWeb) {
+      await PushNotificationService.instance.initialize();
+    }
 
     if (kIsWeb) {
       configureWebUrlStrategy();
@@ -75,6 +82,10 @@ class SalonNoteApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PushNotificationService.instance.attachNavigator(rootNavigatorKey);
+    });
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'SalonNote',
@@ -92,6 +103,8 @@ class SalonNoteApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+
+      navigatorKey: rootNavigatorKey,
 
       navigatorObservers: [
         FirebaseAnalyticsObserver(

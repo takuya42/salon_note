@@ -109,6 +109,14 @@ class _WebBookingPageState extends ConsumerState<WebBookingPage> {
                         onChanged: bookingController.setCustomerPhone,
                       ),
                       const SizedBox(height: 16),
+                      _BookingTextField(
+                        label: 'メールアドレス',
+                        icon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                        autofillHints: const [AutofillHints.email],
+                        onChanged: bookingController.setCustomerEmail,
+                      ),
+                      const SizedBox(height: 16),
                       ref.watch(webMenusProvider(shop.shopId)).when(
                             data: (menus) {
                               WebMenu? selectedMenu;
@@ -233,17 +241,20 @@ class _BookingTextField extends StatelessWidget {
     required this.icon,
     required this.onChanged,
     this.keyboardType,
+    this.autofillHints,
   });
 
   final String label;
   final IconData icon;
   final ValueChanged<String> onChanged;
   final TextInputType? keyboardType;
+  final Iterable<String>? autofillHints;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       keyboardType: keyboardType,
+      autofillHints: autofillHints,
       onChanged: onChanged,
       decoration: InputDecoration(
         labelText: '$label（必須）',
