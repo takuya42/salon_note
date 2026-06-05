@@ -79,7 +79,10 @@ service cloud.firestore {
     function isShopWebBookingEnabled(shopId) {
       return exists(/databases/$(database)/documents/shops/$(shopId))
         && get(/databases/$(database)/documents/shops/$(shopId)).data.isWebPublished == true
-        && get(/databases/$(database)/documents/shops/$(shopId)).data.isWebBookingEnabled == true;
+        && (
+          !('isWebBookingEnabled' in get(/databases/$(database)/documents/shops/$(shopId)).data)
+          || get(/databases/$(database)/documents/shops/$(shopId)).data.isWebBookingEnabled == true
+        );
     }
 
     function isValidReservationCreate() {
