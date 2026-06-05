@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
 class WebSettingData {
@@ -252,21 +253,35 @@ class WebSettingService {
     required String shopId,
     required XFile image,
   }) async {
-    final ref = _storage.ref('shop_images/$shopId/shop_cover.jpg');
-    final bytes = await image.readAsBytes();
+    try {
+      debugPrint('STORAGE UPLOAD START => $shopId');
 
-    await ref.putData(
-      bytes,
-      SettableMetadata(contentType: image.mimeType ?? 'image/jpeg'),
-    );
+      final ref = _storage.ref('shop_images/$shopId/shop_cover.jpg');
+      final bytes = await image.readAsBytes();
 
-    final downloadUrl = await ref.getDownloadURL();
-    await _firestore.collection('shops').doc(shopId).set({
-      'imageUrl': downloadUrl,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+      await ref.putData(
+        bytes,
+        SettableMetadata(contentType: image.mimeType ?? 'image/jpeg'),
+      );
 
-    return downloadUrl;
+      debugPrint('STORAGE PUT SUCCESS');
+
+      final downloadUrl = await ref.getDownloadURL();
+      debugPrint('STORAGE URL => $downloadUrl');
+
+      await _firestore.collection('shops').doc(shopId).set({
+        'imageUrl': downloadUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      debugPrint('FIRESTORE IMAGE URL SAVED');
+
+      return downloadUrl;
+    } catch (error, stackTrace) {
+      debugPrint('STORAGE ERROR => $error');
+      debugPrintStack(stackTrace: stackTrace);
+      rethrow;
+    }
   }
 }
 

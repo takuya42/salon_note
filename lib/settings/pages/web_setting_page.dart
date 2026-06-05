@@ -147,11 +147,19 @@ class _WebSettingPageState extends State<WebSettingPage> {
     final shopId = _shopId;
     if (shopId == null || _isUploadingImage) return;
 
+    debugPrint('IMAGE PICK START');
+
     final pickedImage = await _imagePicker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 88,
     );
-    if (pickedImage == null) return;
+
+    debugPrint('IMAGE PICK RESULT => ${pickedImage?.path}');
+
+    if (pickedImage == null) {
+      debugPrint('IMAGE PICK CANCELLED');
+      return;
+    }
 
     setState(() {
       _isUploadingImage = true;
@@ -159,15 +167,26 @@ class _WebSettingPageState extends State<WebSettingPage> {
     });
 
     try {
-      final downloadUrl = await _service.uploadShopCoverImage(
-        shopId: shopId,
-        image: pickedImage,
-      );
-      if (!mounted) return;
-      setState(() => _imageUrl = downloadUrl);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('店舗画像をアップロードしました')),
-      );
+      debugPrint('IMAGE UPLOAD START');
+
+      try {
+        final downloadUrl = await _service.uploadShopCoverImage(
+          shopId: shopId,
+          image: pickedImage,
+        );
+
+        debugPrint('IMAGE UPLOAD SUCCESS => $downloadUrl');
+
+        if (!mounted) return;
+        setState(() => _imageUrl = downloadUrl);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('店舗画像をアップロードしました')),
+        );
+      } catch (error, stackTrace) {
+        debugPrint('IMAGE UPLOAD ERROR => $error');
+        debugPrintStack(stackTrace: stackTrace);
+        rethrow;
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() => _errorMessage = '店舗画像のアップロードに失敗しました。');
@@ -542,23 +561,75 @@ class _ImageUploadPanel extends StatelessWidget {
           const SizedBox(height: 12),
           AspectRatio(
             aspectRatio: 16 / 9,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: imageUrl.isEmpty
-                  ? Container(
-                      color: _beige.withAlpha(120),
-                      child: const Center(
-                        child: Icon(Icons.spa, color: Colors.white, size: 54),
-                      ),
-                    )
-                  : Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: isUploading ? null : onPickImage,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (imageUrl.isEmpty)
+                      Container(
                         color: _beige.withAlpha(120),
-                        child: const Icon(Icons.broken_image, color: _mutedBrown),
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_a_photo,
+                              color: Colors.white,
+                              size: 54,
+                            ),
+                            SizedBox(height: 10),
+                            Text(
+                              'タップして画像を選択',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: _beige.withAlpha(120),
+                          child: const Icon(
+                            Icons.broken_image,
+                            color: _mutedBrown,
+                          ),
+                        ),
                       ),
-                    ),
+                    if (imageUrl.isNotEmpty)
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withAlpha(128),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    if (isUploading)
+                      Container(
+                        color: Colors.black.withAlpha(77),
+                        child: const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 12),
