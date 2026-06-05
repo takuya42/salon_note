@@ -8,6 +8,7 @@ class WebBookingState {
   const WebBookingState({
     this.customerName = '',
     this.customerPhone = '',
+    this.customerEmail = '',
     this.menuId,
     this.reservationDateTime,
     this.isSubmitting = false,
@@ -16,6 +17,7 @@ class WebBookingState {
 
   final String customerName;
   final String customerPhone;
+  final String customerEmail;
   final String? menuId;
   final DateTime? reservationDateTime;
   final bool isSubmitting;
@@ -24,6 +26,7 @@ class WebBookingState {
   bool get canSubmit =>
       customerName.trim().isNotEmpty &&
       customerPhone.trim().isNotEmpty &&
+      _isValidEmail(customerEmail) &&
       menuId != null &&
       reservationDateTime != null &&
       !isSubmitting;
@@ -31,6 +34,7 @@ class WebBookingState {
   WebBookingState copyWith({
     String? customerName,
     String? customerPhone,
+    String? customerEmail,
     String? menuId,
     DateTime? reservationDateTime,
     bool? isSubmitting,
@@ -40,6 +44,7 @@ class WebBookingState {
     return WebBookingState(
       customerName: customerName ?? this.customerName,
       customerPhone: customerPhone ?? this.customerPhone,
+      customerEmail: customerEmail ?? this.customerEmail,
       menuId: menuId ?? this.menuId,
       reservationDateTime: reservationDateTime ?? this.reservationDateTime,
       isSubmitting: isSubmitting ?? this.isSubmitting,
@@ -52,11 +57,18 @@ final webBookingServiceProvider = Provider<WebBookingService>((ref) {
   return WebBookingService();
 });
 
-final webReservationProvider = FutureProvider.autoDispose.family<WebReservation?, String>((ref, reservationId) {
+final webReservationProvider =
+    FutureProvider.autoDispose.family<WebReservation?, String>((
+  ref,
+  reservationId,
+) {
   return ref.watch(webBookingServiceProvider).fetchReservation(reservationId);
 });
 
-final webBookingProvider = StateNotifierProvider.autoDispose<WebBookingController, WebBookingState>((ref) {
+final webBookingProvider =
+    StateNotifierProvider.autoDispose<WebBookingController, WebBookingState>((
+  ref,
+) {
   return WebBookingController(ref.watch(webBookingServiceProvider));
 });
 
@@ -71,6 +83,10 @@ class WebBookingController extends StateNotifier<WebBookingState> {
 
   void setCustomerPhone(String value) {
     state = state.copyWith(customerPhone: value, clearError: true);
+  }
+
+  void setCustomerEmail(String value) {
+    state = state.copyWith(customerEmail: value, clearError: true);
   }
 
   void setMenuId(String value) {
@@ -113,7 +129,10 @@ class WebBookingController extends StateNotifier<WebBookingState> {
 
   Future<String?> submit(String shopId) async {
     if (!state.canSubmit) {
-      state = state.copyWith(errorMessage: 'お名前・電話番号・メニュー・日時を入力してください。');
+      state = state.copyWith(
+        errorMessage:
+            'お名前・電話番号・正しいメールアドレス・メニュー・日時を入力してください。',
+      );
       return null;
     }
 
@@ -126,6 +145,7 @@ class WebBookingController extends StateNotifier<WebBookingState> {
           menuId: state.menuId!,
           customerName: state.customerName.trim(),
           customerPhone: state.customerPhone.trim(),
+          customerEmail: state.customerEmail.trim(),
           reservationDateTime: state.reservationDateTime!,
           status: 'pending',
           source: 'web',
@@ -143,4 +163,8 @@ class WebBookingController extends StateNotifier<WebBookingState> {
       return null;
     }
   }
+}
+
+bool _isValidEmail(String value) {
+  return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value.trim());
 }
