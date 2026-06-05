@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
@@ -21,10 +23,22 @@ class WebShopService {
         return null;
       }
 
+      print('WEB SHOP FOUND');
+      print('docId => ${snapshot.docs.first.id}');
+      print('shopId => ${snapshot.docs.first.data()['shopId']}');
+      print('name => ${snapshot.docs.first.data()['name']}');
+      print(
+        'isWebPublished => '
+        '${snapshot.docs.first.data()['isWebPublished']}',
+      );
+      print(
+        'isWebBookingEnabled => '
+        '${snapshot.docs.first.data()['isWebBookingEnabled']}',
+      );
+
       return WebShop.fromFirestore(snapshot.docs.first);
     });
   }
-
 
   Stream<WebShop?> watchShopById(String shopId) {
     return _firestore
