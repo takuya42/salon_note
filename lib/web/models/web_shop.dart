@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'web_booking_settings.dart';
+
 class WebShop {
   const WebShop({
     required this.shopId,
@@ -80,8 +82,7 @@ class WebShop {
       ownerEmail: (data['ownerEmail'] as String?) ?? '',
       planType: (data['planType'] as String?) ?? 'free',
       isWebPublished: (data['isWebPublished'] as bool?) ?? false,
-      isWebBookingEnabled:
-          (data['isWebBookingEnabled'] as bool?) ?? false,
+      isWebBookingEnabled: readWebBookingEnabled(data),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
