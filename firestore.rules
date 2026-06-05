@@ -21,6 +21,8 @@ service cloud.firestore {
         'address',
         'phone',
         'imageUrl',
+        'imagePath',
+        'imageBucket',
         'businessHours',
         'ownerId',
         'ownerEmail',

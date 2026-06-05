@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/web_shop.dart';
 import '../providers/web_home_provider.dart';
 import '../web_route_paths.dart';
+import '../widgets/storage_network_image.dart';
 import '../widgets/web_design_widgets.dart';
 
 class WebHomePage extends ConsumerWidget {
@@ -159,7 +160,7 @@ class _ShopCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _ShopImage(imageUrl: shop.imageUrl),
+              _ShopImage(imageUrl: shop.imageUrl, imagePath: shop.imagePath),
               Padding(
                 padding: const EdgeInsets.all(22),
                 child: Column(
@@ -215,32 +216,25 @@ class _ShopCard extends StatelessWidget {
 }
 
 class _ShopImage extends StatelessWidget {
-  const _ShopImage({required this.imageUrl});
+  const _ShopImage({required this.imageUrl, required this.imagePath});
 
   final String imageUrl;
+  final String imagePath;
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('HOME IMAGE URL => $imageUrl');
-    if (imageUrl.isEmpty) {
-      debugPrint('HOME IMAGE EMPTY');
-    }
-
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       child: SizedBox(
         height: 190,
         width: double.infinity,
-        child: imageUrl.isEmpty
-            ? const _ShopImagePlaceholder()
-            : Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, error, __) {
-                  debugPrint('HOME IMAGE ERROR => $error');
-                  return const _ShopImagePlaceholder();
-                },
-              ),
+        child: StorageNetworkImage(
+          imageUrl: imageUrl,
+          imagePath: imagePath,
+          fit: BoxFit.cover,
+          placeholder: const _ShopImagePlaceholder(),
+          logPrefix: 'HOME',
+        ),
       ),
     );
   }

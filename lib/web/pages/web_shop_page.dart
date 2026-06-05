@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/web_menu.dart';
 import '../providers/web_shop_provider.dart';
 import '../web_route_paths.dart';
+import '../widgets/storage_network_image.dart';
 import '../widgets/web_design_widgets.dart';
 
 class WebShopPage extends ConsumerWidget {
@@ -25,7 +26,12 @@ class WebShopPage extends ConsumerWidget {
 
           return CustomScrollView(
             slivers: [
-              SliverToBoxAdapter(child: _HeroImage(imageUrl: shop.imageUrl)),
+              SliverToBoxAdapter(
+                child: _HeroImage(
+                  imageUrl: shop.imageUrl,
+                  imagePath: shop.imagePath,
+                ),
+              ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(22, 26, 22, 32),
                 sliver: SliverList.list(
@@ -123,9 +129,10 @@ class WebShopPage extends ConsumerWidget {
 }
 
 class _HeroImage extends StatelessWidget {
-  const _HeroImage({required this.imageUrl});
+  const _HeroImage({required this.imageUrl, required this.imagePath});
 
   final String imageUrl;
+  final String imagePath;
 
   @override
   Widget build(BuildContext context) {
@@ -143,16 +150,13 @@ class _HeroImage extends StatelessWidget {
           ),
         ],
       ),
-      child: imageUrl.isEmpty
-          ? const _HeroPlaceholder()
-          : Image.network(
-              imageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (_, error, ___) {
-                debugPrint('IMAGE ERROR => $error');
-                return const _HeroPlaceholder();
-              },
-            ),
+      child: StorageNetworkImage(
+        imageUrl: imageUrl,
+        imagePath: imagePath,
+        fit: BoxFit.cover,
+        placeholder: const _HeroPlaceholder(),
+        logPrefix: 'SHOP',
+      ),
     );
   }
 }
