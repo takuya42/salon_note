@@ -161,12 +161,12 @@ class WebSettingService {
 
   Future<List<WebSettingMenuData>> fetchMenus(String shopId) async {
     try {
-      final snapshot = await _menusRef
-          .where('shopId', isEqualTo: shopId)
-          .orderBy('createdAt')
-          .get();
+      final snapshot = await _menusRef.where('shopId', isEqualTo: shopId).get();
 
-      return snapshot.docs.map(WebSettingMenuData.fromFirestore).toList();
+      return snapshot.docs
+          .map(WebSettingMenuData.fromFirestore)
+          .toList()
+        ..sort(_compareMenusByCreatedAtAndMenuId);
     } catch (error) {
       debugPrint('MENU LOAD ERROR => $error');
       rethrow;
@@ -181,12 +181,12 @@ class WebSettingService {
         return;
       }
 
-      yield* _menusRef
-          .where('shopId', isEqualTo: shopId)
-          .orderBy('createdAt')
-          .snapshots()
-          .map((snapshot) =>
-              snapshot.docs.map(WebSettingMenuData.fromFirestore).toList())
+      yield* _menusRef.where('shopId', isEqualTo: shopId).snapshots().map(
+            (snapshot) => snapshot.docs
+                .map(WebSettingMenuData.fromFirestore)
+                .toList()
+              ..sort(_compareMenusByCreatedAtAndMenuId),
+          )
           .handleError((Object error) {
         debugPrint('MENU LOAD ERROR => $error');
         throw error;
@@ -195,6 +195,27 @@ class WebSettingService {
       debugPrint('MENU LOAD ERROR => $error');
       rethrow;
     }
+  }
+
+  static int _compareMenusByCreatedAtAndMenuId(
+    WebSettingMenuData a,
+    WebSettingMenuData b,
+  ) {
+    final createdAtComparison = _compareNullableDateTime(
+      a.createdAt,
+      b.createdAt,
+    );
+    if (createdAtComparison != 0) return createdAtComparison;
+
+    return a.menuId.compareTo(b.menuId);
+  }
+
+  static int _compareNullableDateTime(DateTime? a, DateTime? b) {
+    if (a == null && b == null) return 0;
+    if (a == null) return 1;
+    if (b == null) return -1;
+
+    return a.compareTo(b);
   }
 
   Future<void> addMenu({
