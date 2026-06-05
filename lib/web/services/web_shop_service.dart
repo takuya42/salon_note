@@ -25,6 +25,32 @@ class WebShopService {
     });
   }
 
+
+  Stream<WebShop?> watchShopById(String shopId) {
+    return _firestore
+        .collection('shops')
+        .doc(shopId.trim())
+        .snapshots()
+        .map((snapshot) {
+      if (!snapshot.exists) {
+        return null;
+      }
+
+      return WebShop.fromFirestore(snapshot);
+    });
+  }
+
+  Future<WebShop?> fetchShopById(String shopId) async {
+    final snapshot =
+        await _firestore.collection('shops').doc(shopId.trim()).get();
+
+    if (!snapshot.exists) {
+      return null;
+    }
+
+    return WebShop.fromFirestore(snapshot);
+  }
+
   Future<WebShop?> fetchShop(String shopName) async {
     final snapshot = await _firestore
         .collection('shops')

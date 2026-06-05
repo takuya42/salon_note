@@ -1,10 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/web_shop.dart';
 import '../providers/web_home_provider.dart';
 import '../web_route_paths.dart';
 import '../widgets/web_design_widgets.dart';
+
+Future<void> _openExternalUrl(String url) async {
+  final uri = Uri.tryParse(url.trim());
+  if (uri == null || !uri.hasScheme) {
+    return;
+  }
+  await launchUrl(uri, webOnlyWindowName: '_blank');
+}
+
+Future<void> _openMapForAddress(String address) async {
+  final normalizedAddress = address.trim();
+  if (normalizedAddress.isEmpty) {
+    return;
+  }
+  final uri = Uri.https('www.google.com', '/maps/search/', {
+    'api': '1',
+    'query': normalizedAddress,
+  });
+  await launchUrl(uri, webOnlyWindowName: '_blank');
+}
 
 class WebHomePage extends ConsumerWidget {
   const WebHomePage({super.key});
@@ -176,6 +197,10 @@ class _ShopCard extends StatelessWidget {
                       icon: Icons.location_on_outlined,
                       label: '住所',
                       value: shop.address.isEmpty ? '住所は未設定です。' : shop.address,
+                      onTap: shop.address.trim().isEmpty
+                          ? null
+                          : () => _openMapForAddress(shop.address),
+                      actionLabel: 'Googleマップで開く',
                     ),
                     const SizedBox(height: 12),
                     _ShopInfo(
@@ -185,6 +210,7 @@ class _ShopCard extends StatelessWidget {
                           ? '営業時間は未設定です。'
                           : shop.businessHours,
                     ),
+                    _ShopLinks(shop: shop),
                     const SizedBox(height: 18),
                     Row(
                       children: const [
@@ -260,15 +286,19 @@ class _ShopInfo extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    this.onTap,
+    this.actionLabel,
   });
 
   final IconData icon;
   final String label;
   final String value;
+  final VoidCallback? onTap;
+  final String? actionLabel;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final content = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, color: webGold, size: 20),
@@ -295,10 +325,76 @@ class _ShopInfo extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              if (onTap != null && actionLabel != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  actionLabel!,
+                  style: const TextStyle(
+                    color: webGold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
       ],
+    );
+
+    if (onTap == null) {
+      return content;
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: content,
+      ),
+    );
+  }
+}
+
+class _ShopLinks extends StatelessWidget {
+  const _ShopLinks({required this.shop});
+
+  final WebShop shop;
+
+  @override
+  Widget build(BuildContext context) {
+    final links = <({String label, String url})>[
+      if (shop.instagramUrl.isNotEmpty)
+        (label: 'Instagram', url: shop.instagramUrl),
+      if (shop.lineUrl.isNotEmpty) (label: 'LINE', url: shop.lineUrl),
+      if (shop.websiteUrl.isNotEmpty) (label: 'ホームページ', url: shop.websiteUrl),
+    ];
+
+    if (links.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: links
+            .map(
+              (link) => ActionChip(
+                label: Text(link.label),
+                avatar: const Icon(Icons.open_in_new, size: 16),
+                onPressed: () => _openExternalUrl(link.url),
+                backgroundColor: webLightBeige,
+                labelStyle: const TextStyle(
+                  color: webDarkBrown,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            )
+            .toList(),
+      ),
     );
   }
 }

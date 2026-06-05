@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/web_reservation.dart';
@@ -80,6 +81,36 @@ class WebBookingController extends StateNotifier<WebBookingState> {
     state = state.copyWith(reservationDateTime: value, clearError: true);
   }
 
+  void setReservationDate(DateTime value) {
+    final current = state.reservationDateTime;
+    state = state.copyWith(
+      reservationDateTime: DateTime(
+        value.year,
+        value.month,
+        value.day,
+        current?.hour ?? 10,
+        current?.minute ?? 0,
+      ),
+      clearError: true,
+    );
+  }
+
+  void setReservationTime(TimeOfDay value) {
+    final current = state.reservationDateTime;
+    final now = DateTime.now();
+    final baseDate = current ?? now.add(const Duration(days: 1));
+    state = state.copyWith(
+      reservationDateTime: DateTime(
+        baseDate.year,
+        baseDate.month,
+        baseDate.day,
+        value.hour,
+        value.minute,
+      ),
+      clearError: true,
+    );
+  }
+
   Future<String?> submit(String shopId) async {
     if (!state.canSubmit) {
       state = state.copyWith(errorMessage: 'お名前・電話番号・メニュー・日時を入力してください。');
@@ -96,7 +127,7 @@ class WebBookingController extends StateNotifier<WebBookingState> {
           customerName: state.customerName.trim(),
           customerPhone: state.customerPhone.trim(),
           reservationDateTime: state.reservationDateTime!,
-          status: '予約受付',
+          status: 'pending',
           source: 'web',
           isNotified: false,
           createdAt: null,

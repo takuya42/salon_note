@@ -10,6 +10,9 @@ class WebShop {
     required this.imageUrl,
     required this.imagePath,
     required this.businessHours,
+    required this.instagramUrl,
+    required this.lineUrl,
+    required this.websiteUrl,
     required this.ownerId,
     required this.ownerEmail,
     required this.planType,
@@ -25,6 +28,9 @@ class WebShop {
   final String imageUrl;
   final String imagePath;
   final String businessHours;
+  final String instagramUrl;
+  final String lineUrl;
+  final String websiteUrl;
   final String ownerId;
   final String ownerEmail;
   final String planType;
@@ -50,6 +56,9 @@ class WebShop {
       imageUrl: imageUrl,
       imagePath: imagePath,
       businessHours: (data['businessHours'] as String?) ?? '',
+      instagramUrl: ((data['instagramUrl'] as String?) ?? '').trim(),
+      lineUrl: ((data['lineUrl'] as String?) ?? '').trim(),
+      websiteUrl: ((data['websiteUrl'] as String?) ?? '').trim(),
       ownerId: (data['ownerId'] as String?) ?? '',
       ownerEmail: (data['ownerEmail'] as String?) ?? '',
       planType: (data['planType'] as String?) ?? 'free',
@@ -68,6 +77,9 @@ class WebShop {
       'imageUrl': imageUrl,
       'imagePath': imagePath,
       'businessHours': businessHours,
+      'instagramUrl': instagramUrl,
+      'lineUrl': lineUrl,
+      'websiteUrl': websiteUrl,
       'ownerId': ownerId,
       'ownerEmail': ownerEmail,
       'planType': planType,
