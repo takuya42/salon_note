@@ -21,6 +21,7 @@ class WebBookingService {
     debugPrint('menuId => ${reservation.menuId}');
     debugPrint('customerName => ${reservation.customerName}');
     debugPrint('customerPhone => ${reservation.customerPhone}');
+    debugPrint('customerEmail => ${reservation.customerEmail}');
     debugPrint('reservationDateTime => ${reservation.reservationDateTime}');
 
     try {
@@ -38,6 +39,7 @@ class WebBookingService {
         menuId: reservation.menuId,
         customerName: reservation.customerName,
         customerPhone: reservation.customerPhone,
+        customerEmail: reservation.customerEmail,
         reservationDateTime: reservation.reservationDateTime,
         status: reservation.status,
         source: reservation.source,
