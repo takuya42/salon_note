@@ -221,6 +221,11 @@ class _ShopImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('HOME IMAGE URL => $imageUrl');
+    if (imageUrl.isEmpty) {
+      debugPrint('HOME IMAGE EMPTY');
+    }
+
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       child: SizedBox(
@@ -231,7 +236,10 @@ class _ShopImage extends StatelessWidget {
             : Image.network(
                 imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const _ShopImagePlaceholder(),
+                errorBuilder: (_, error, __) {
+                  debugPrint('HOME IMAGE ERROR => $error');
+                  return const _ShopImagePlaceholder();
+                },
               ),
       ),
     );

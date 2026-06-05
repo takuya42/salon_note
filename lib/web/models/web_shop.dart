@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class WebShop {
   const WebShop({
@@ -35,6 +36,9 @@ class WebShop {
     DocumentSnapshot<Map<String, dynamic>> snapshot,
   ) {
     final data = snapshot.data() ?? <String, dynamic>{};
+    final imageUrl = ((data['imageUrl'] as String?) ?? '').trim();
+    debugPrint('HOME FIRESTORE IMAGE URL => ${snapshot.id}: $imageUrl');
+
     return WebShop(
       shopId: (data['shopId'] as String?) ?? snapshot.id,
       shopName:
@@ -42,7 +46,7 @@ class WebShop {
       description: (data['description'] as String?) ?? '',
       address: (data['address'] as String?) ?? '',
       phone: (data['phone'] as String?) ?? '',
-      imageUrl: ((data['imageUrl'] as String?) ?? '').trim(),
+      imageUrl: imageUrl,
       businessHours: (data['businessHours'] as String?) ?? '',
       ownerId: (data['ownerId'] as String?) ?? '',
       ownerEmail: (data['ownerEmail'] as String?) ?? '',
