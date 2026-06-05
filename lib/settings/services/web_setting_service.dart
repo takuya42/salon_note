@@ -307,8 +307,10 @@ class WebSettingService {
   }) async {
     try {
       debugPrint('STORAGE UPLOAD START => $shopId');
+      debugPrint('STORAGE BUCKET => ${_storage.ref().bucket}');
 
       final ref = _storage.ref('shop_images/$shopId/shop_cover.jpg');
+      debugPrint('STORAGE REF FULL PATH => ${ref.fullPath}');
       final bytes = await image.readAsBytes();
 
       await ref.putData(
@@ -323,10 +325,13 @@ class WebSettingService {
 
       await _firestore.collection('shops').doc(shopId).set({
         'imageUrl': downloadUrl,
+        'imagePath': ref.fullPath,
+        'imageBucket': ref.bucket,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
       debugPrint('FIRESTORE IMAGE URL SAVED');
+      debugPrint('FIRESTORE IMAGE PATH SAVED => ${ref.fullPath}');
 
       return downloadUrl;
     } catch (error, stackTrace) {

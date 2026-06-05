@@ -9,6 +9,7 @@ class WebShop {
     required this.address,
     required this.phone,
     required this.imageUrl,
+    required this.imagePath,
     required this.businessHours,
     required this.ownerId,
     required this.ownerEmail,
@@ -23,6 +24,7 @@ class WebShop {
   final String address;
   final String phone;
   final String imageUrl;
+  final String imagePath;
   final String businessHours;
   final String ownerId;
   final String ownerEmail;
@@ -37,7 +39,9 @@ class WebShop {
   ) {
     final data = snapshot.data() ?? <String, dynamic>{};
     final imageUrl = ((data['imageUrl'] as String?) ?? '').trim();
+    final imagePath = ((data['imagePath'] as String?) ?? '').trim();
     debugPrint('HOME FIRESTORE IMAGE URL => ${snapshot.id}: $imageUrl');
+    debugPrint('HOME FIRESTORE IMAGE PATH => ${snapshot.id}: $imagePath');
 
     return WebShop(
       shopId: (data['shopId'] as String?) ?? snapshot.id,
@@ -47,6 +51,7 @@ class WebShop {
       address: (data['address'] as String?) ?? '',
       phone: (data['phone'] as String?) ?? '',
       imageUrl: imageUrl,
+      imagePath: imagePath,
       businessHours: (data['businessHours'] as String?) ?? '',
       ownerId: (data['ownerId'] as String?) ?? '',
       ownerEmail: (data['ownerEmail'] as String?) ?? '',
@@ -64,6 +69,7 @@ class WebShop {
       'address': address,
       'phone': phone,
       'imageUrl': imageUrl,
+      'imagePath': imagePath,
       'businessHours': businessHours,
       'ownerId': ownerId,
       'ownerEmail': ownerEmail,
