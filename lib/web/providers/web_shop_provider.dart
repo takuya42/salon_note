@@ -13,6 +13,11 @@ final webShopProvider =
   return ref.watch(webShopServiceProvider).watchShop(shopName);
 });
 
+final webShopByIdProvider =
+    StreamProvider.autoDispose.family<WebShop?, String>((ref, shopId) {
+  return ref.watch(webShopServiceProvider).watchShopById(shopId);
+});
+
 final webMenusProvider =
     StreamProvider.autoDispose.family<List<WebMenu>, String>((ref, shopId) {
   return ref.watch(webShopServiceProvider).watchMenus(shopId);

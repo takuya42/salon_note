@@ -3,9 +3,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/web_menu.dart';
+import '../models/web_shop.dart';
 import '../providers/web_shop_provider.dart';
 import '../web_route_paths.dart';
 import '../widgets/web_design_widgets.dart';
+
+Future<void> _openExternalUrl(String url) async {
+  final uri = Uri.tryParse(url.trim());
+  if (uri == null || !uri.hasScheme) {
+    return;
+  }
+  await launchUrl(uri, webOnlyWindowName: '_blank');
+}
+
+Future<void> _openMapForAddress(String address) async {
+  final normalizedAddress = address.trim();
+  if (normalizedAddress.isEmpty) {
+    return;
+  }
+  final uri = Uri.https('www.google.com', '/maps/search/', {
+    'api': '1',
+    'query': normalizedAddress,
+  });
+  await launchUrl(uri, webOnlyWindowName: '_blank');
+}
 
 class WebShopPage extends ConsumerWidget {
   const WebShopPage({super.key, required this.shopName});
@@ -64,6 +85,10 @@ class WebShopPage extends ConsumerWidget {
                       icon: Icons.map_outlined,
                       title: '住所',
                       value: shop.address.isEmpty ? '住所は未設定です。' : shop.address,
+                      onTap: shop.address.trim().isEmpty
+                          ? null
+                          : () => _openMapForAddress(shop.address),
+                      actionLabel: 'Googleマップで開く',
                     ),
                     const SizedBox(height: 14),
                     _InfoCard(
@@ -75,11 +100,15 @@ class WebShopPage extends ConsumerWidget {
                     ),
                     const SizedBox(height: 14),
                     _PhoneCard(phone: shop.phone),
+                    _ShopLinks(shop: shop),
                     const SizedBox(height: 30),
                     const _SectionTitle(label: 'Menu', subLabel: 'メニュー'),
                     const SizedBox(height: 14),
                     ref.watch(webMenusProvider(shop.shopId)).when(
-                          data: (menus) => _MenuList(menus: menus),
+                          data: (menus) => _MenuList(
+                            menus: menus,
+                            shopId: shop.shopId,
+                          ),
                           loading: () => const WebCard(
                             child: Center(child: CircularProgressIndicator()),
                           ),
@@ -102,7 +131,7 @@ class WebShopPage extends ConsumerWidget {
                         label: 'このサロンを予約する',
                         onPressed: () => Navigator.pushNamed(
                           context,
-                          WebRoutePaths.booking(shop.shopName),
+                          WebRoutePaths.booking(shop.shopId),
                         ),
                       ),
                     ),
@@ -283,16 +312,19 @@ class _InfoCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.value,
+    this.onTap,
+    this.actionLabel,
   });
 
   final IconData icon;
   final String title;
   final String value;
+  final VoidCallback? onTap;
+  final String? actionLabel;
 
   @override
   Widget build(BuildContext context) {
-    return WebCard(
-      child: Row(
+    final content = Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
@@ -328,19 +360,84 @@ class _InfoCard extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                if (onTap != null && actionLabel != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    actionLabel!,
+                    style: const TextStyle(
+                      color: webGold,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         ],
+      );
+
+    final card = WebCard(child: content);
+    if (onTap == null) {
+      return card;
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(28),
+      child: card,
+    );
+  }
+}
+
+class _ShopLinks extends StatelessWidget {
+  const _ShopLinks({required this.shop});
+
+  final WebShop shop;
+
+  @override
+  Widget build(BuildContext context) {
+    final links = <({String label, String url})>[
+      if (shop.instagramUrl.isNotEmpty)
+        (label: 'Instagram', url: shop.instagramUrl),
+      if (shop.lineUrl.isNotEmpty) (label: 'LINE', url: shop.lineUrl),
+      if (shop.websiteUrl.isNotEmpty) (label: 'ホームページ', url: shop.websiteUrl),
+    ];
+
+    if (links.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: WebCard(
+        child: Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: links
+              .map(
+                (link) => ActionChip(
+                  label: Text(link.label),
+                  avatar: const Icon(Icons.open_in_new, size: 16),
+                  onPressed: () => _openExternalUrl(link.url),
+                  backgroundColor: webLightBeige,
+                  labelStyle: const TextStyle(
+                    color: webDarkBrown,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              )
+              .toList(),
+        ),
       ),
     );
   }
 }
 
 class _MenuList extends StatelessWidget {
-  const _MenuList({required this.menus});
+  const _MenuList({required this.menus, required this.shopId});
 
   final List<WebMenu> menus;
+  final String shopId;
 
   @override
   Widget build(BuildContext context) {
@@ -411,11 +508,56 @@ class _MenuList extends StatelessWidget {
                     style: const TextStyle(color: webMuted, height: 1.6),
                   ),
                 ],
+                const SizedBox(height: 18),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _confirmMenuBooking(context, menu),
+                    icon: const Icon(Icons.event_available),
+                    label: const Text('予約する'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: webBrown,
+                      side: const BorderSide(color: webGold),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
         );
       }).toList(),
+    );
+  }
+
+  Future<void> _confirmMenuBooking(BuildContext context, WebMenu menu) async {
+    final shouldBook = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('このメニューで予約しますか？'),
+        content: Text(menu.name),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('キャンセル'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('予約する'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldBook != true || !context.mounted) {
+      return;
+    }
+
+    Navigator.pushNamed(
+      context,
+      WebRoutePaths.booking(shopId, menuId: menu.menuId),
     );
   }
 }

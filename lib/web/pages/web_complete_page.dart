@@ -42,13 +42,13 @@ class WebCompletePage extends ConsumerWidget {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  '予約ありがとうございます',
+                  '予約を受け付けました',
                   style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'サロンからの確認連絡をお待ちください。',
+                  '店舗からのご連絡をお待ちください',
                   style: TextStyle(color: webMuted),
                   textAlign: TextAlign.center,
                 ),

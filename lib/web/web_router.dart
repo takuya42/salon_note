@@ -30,7 +30,13 @@ class WebRouter {
 
     if (uri.pathSegments.length == 2 &&
         uri.pathSegments.first == WebRoutePaths.bookingSegment) {
-      return _material(settings, WebBookingPage(shopName: uri.pathSegments[1]));
+      return _material(
+        settings,
+        WebBookingPage(
+          shopId: uri.pathSegments[1],
+          initialMenuId: uri.queryParameters['menuId'],
+        ),
+      );
     }
 
     if (uri.path == '/complete') {

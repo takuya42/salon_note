@@ -40,7 +40,7 @@ class WebReservation {
       reservationDateTime:
           ((data['reservationDateTime'] as Timestamp?) ?? Timestamp.now())
               .toDate(),
-      status: (data['status'] as String?) ?? '予約受付',
+      status: (data['status'] as String?) ?? 'pending',
       source: (data['source'] as String?) ?? 'web',
       isNotified: (data['isNotified'] as bool?) ?? false,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),

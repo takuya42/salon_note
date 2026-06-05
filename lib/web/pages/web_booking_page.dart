@@ -7,14 +7,48 @@ import '../providers/web_shop_provider.dart';
 import '../web_route_paths.dart';
 import '../widgets/web_design_widgets.dart';
 
-class WebBookingPage extends ConsumerWidget {
-  const WebBookingPage({super.key, required this.shopName});
+class WebBookingPage extends ConsumerStatefulWidget {
+  const WebBookingPage({
+    super.key,
+    required this.shopId,
+    this.initialMenuId,
+  });
 
-  final String shopName;
+  final String shopId;
+  final String? initialMenuId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final shopAsync = ref.watch(webShopProvider(shopName));
+  ConsumerState<WebBookingPage> createState() => _WebBookingPageState();
+}
+
+class _WebBookingPageState extends ConsumerState<WebBookingPage> {
+  bool _appliedInitialMenuId = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_appliedInitialMenuId) {
+      return;
+    }
+
+    final initialMenuId = widget.initialMenuId?.trim();
+    if (initialMenuId == null || initialMenuId.isEmpty) {
+      _appliedInitialMenuId = true;
+      return;
+    }
+
+    _appliedInitialMenuId = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ref.read(webBookingProvider.notifier).setMenuId(initialMenuId);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shopAsync = ref.watch(webShopByIdProvider(widget.shopId));
     final bookingState = ref.watch(webBookingProvider);
     final bookingController = ref.read(webBookingProvider.notifier);
 
@@ -55,7 +89,10 @@ class WebBookingPage extends ConsumerWidget {
                 const SizedBox(height: 24),
                 WebCard(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      _BookingInfoRow(label: '店舗名', value: shop.shopName),
+                      const SizedBox(height: 18),
                       _BookingTextField(
                         label: 'お名前',
                         icon: Icons.person_outline,
@@ -70,22 +107,46 @@ class WebBookingPage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 16),
                       ref.watch(webMenusProvider(shop.shopId)).when(
-                        data: (menus) => _MenuDropdown(
-                          menus: menus,
-                          selectedMenuId: bookingState.menuId,
-                          onChanged: (value) {
-                            if (value != null) {
-                              bookingController.setMenuId(value);
-                            }
-                          },
-                        ),
-                        loading: () => const CircularProgressIndicator(),
-                        error: (_, __) => const Text('メニューの読み込みに失敗しました。'),
-                      ),
+                            data: (menus) {
+                              WebMenu? selectedMenu;
+                              for (final menu in menus) {
+                                if (menu.menuId == bookingState.menuId) {
+                                  selectedMenu = menu;
+                                  break;
+                                }
+                              }
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _MenuDropdown(
+                                    menus: menus,
+                                    selectedMenuId: bookingState.menuId,
+                                    onChanged: (value) {
+                                      if (value != null) {
+                                        bookingController.setMenuId(value);
+                                      }
+                                    },
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _SelectedMenuSummary(menu: selectedMenu),
+                                ],
+                              );
+                            },
+                            loading: () => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                            error: (_, __) =>
+                                const Text('メニューの読み込みに失敗しました。'),
+                          ),
                       const SizedBox(height: 16),
-                      _DateTimeSelector(
+                      _DateSelector(
                         selectedDateTime: bookingState.reservationDateTime,
-                        onChanged: bookingController.setReservationDateTime,
+                        onChanged: bookingController.setReservationDate,
+                      ),
+                      const SizedBox(height: 12),
+                      _TimeSelector(
+                        selectedDateTime: bookingState.reservationDateTime,
+                        onChanged: bookingController.setReservationTime,
                       ),
                       if (bookingState.errorMessage != null) ...[
                         const SizedBox(height: 14),
@@ -96,7 +157,7 @@ class WebBookingPage extends ConsumerWidget {
                       ],
                       const SizedBox(height: 22),
                       WebPrimaryButton(
-                        label: '予約する',
+                        label: '予約確定',
                         isLoading: bookingState.isSubmitting,
                         onPressed: bookingState.canSubmit
                             ? () async {
@@ -105,16 +166,9 @@ class WebBookingPage extends ConsumerWidget {
                                 if (reservationId == null || !context.mounted) {
                                   return;
                                 }
-                                final query = Uri(queryParameters: {
-                                  'shopName': shop.shopName,
-                                  'reservationId': reservationId,
-                                  'reservationDateTime': bookingState
-                                      .reservationDateTime!
-                                      .toIso8601String(),
-                                }).query;
                                 Navigator.pushNamedAndRemoveUntil(
                                   context,
-                                  '/complete?$query',
+                                  '/complete',
                                   (_) => false,
                                 );
                               }
@@ -131,6 +185,41 @@ class WebBookingPage extends ConsumerWidget {
         error: (_, __) =>
             const Center(child: Text('予約ページの読み込みに失敗しました。')),
       ),
+    );
+  }
+}
+
+class _BookingInfoRow extends StatelessWidget {
+  const _BookingInfoRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 86,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: webMuted,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: webDarkBrown,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -154,7 +243,7 @@ class _BookingTextField extends StatelessWidget {
       keyboardType: keyboardType,
       onChanged: onChanged,
       decoration: InputDecoration(
-        labelText: label,
+        labelText: '$label（必須）',
         prefixIcon: Icon(icon),
         filled: true,
         fillColor: webLightBeige,
@@ -180,8 +269,11 @@ class _MenuDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final selectedExists =
+        selectedMenuId == null || menus.any((menu) => menu.menuId == selectedMenuId);
+
     return DropdownButtonFormField<String>(
-      value: selectedMenuId,
+      value: selectedExists ? selectedMenuId : null,
       decoration: InputDecoration(
         labelText: 'メニュー選択',
         prefixIcon: const Icon(Icons.content_cut),
@@ -205,8 +297,48 @@ class _MenuDropdown extends StatelessWidget {
   }
 }
 
-class _DateTimeSelector extends StatelessWidget {
-  const _DateTimeSelector({
+class _SelectedMenuSummary extends StatelessWidget {
+  const _SelectedMenuSummary({required this.menu});
+
+  final WebMenu? menu;
+
+  @override
+  Widget build(BuildContext context) {
+    if (menu == null) {
+      return const Text(
+        'メニューを選択すると料金と施術時間が表示されます。',
+        style: TextStyle(color: webMuted),
+      );
+    }
+
+    final selectedMenu = menu!;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: webLightBeige,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            _BookingInfoRow(label: 'メニュー名', value: selectedMenu.name),
+            const SizedBox(height: 8),
+            _BookingInfoRow(
+              label: '料金',
+              value: '¥${_formatNumber(selectedMenu.price)}',
+            ),
+            const SizedBox(height: 8),
+            _BookingInfoRow(label: '施術時間', value: '${selectedMenu.duration}分'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DateSelector extends StatelessWidget {
+  const _DateSelector({
     required this.selectedDateTime,
     required this.onChanged,
   });
@@ -214,41 +346,32 @@ class _DateTimeSelector extends StatelessWidget {
   final DateTime? selectedDateTime;
   final ValueChanged<DateTime> onChanged;
 
-  String _formatDateTime(DateTime value) {
+  String _formatDate(DateTime value) {
     final month = value.month.toString().padLeft(2, '0');
     final day = value.day.toString().padLeft(2, '0');
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-    return '${value.year}年${month}月${day}日 $hour:$minute';
+    return '${value.year}年$month月$day日';
   }
 
   @override
   Widget build(BuildContext context) {
     final label = selectedDateTime == null
-        ? '日時を選択'
-        : _formatDateTime(selectedDateTime!);
+        ? '予約日を選択（必須）'
+        : _formatDate(selectedDateTime!);
 
     return OutlinedButton.icon(
       onPressed: () async {
         final now = DateTime.now();
         final date = await showDatePicker(
           context: context,
-          initialDate: now.add(const Duration(days: 1)),
-          firstDate: now,
+          initialDate: selectedDateTime ?? now.add(const Duration(days: 1)),
+          firstDate: DateTime(now.year, now.month, now.day),
           lastDate: now.add(const Duration(days: 120)),
           locale: const Locale('ja'),
         );
-        if (date == null || !context.mounted) return;
-
-        final time = await showTimePicker(
-          context: context,
-          initialTime: const TimeOfDay(hour: 10, minute: 0),
-        );
-        if (time == null) return;
-
-        onChanged(DateTime(date.year, date.month, date.day, time.hour, time.minute));
+        if (date == null) return;
+        onChanged(date);
       },
-      icon: const Icon(Icons.event_available),
+      icon: const Icon(Icons.event_outlined),
       label: Text(label),
       style: OutlinedButton.styleFrom(
         foregroundColor: webBlack,
@@ -258,4 +381,49 @@ class _DateTimeSelector extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TimeSelector extends StatelessWidget {
+  const _TimeSelector({
+    required this.selectedDateTime,
+    required this.onChanged,
+  });
+
+  final DateTime? selectedDateTime;
+  final ValueChanged<TimeOfDay> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = selectedDateTime == null
+        ? '予約時間を選択（必須）'
+        : '${selectedDateTime!.hour.toString().padLeft(2, '0')}:${selectedDateTime!.minute.toString().padLeft(2, '0')}';
+
+    return OutlinedButton.icon(
+      onPressed: () async {
+        final time = await showTimePicker(
+          context: context,
+          initialTime: selectedDateTime == null
+              ? const TimeOfDay(hour: 10, minute: 0)
+              : TimeOfDay.fromDateTime(selectedDateTime!),
+        );
+        if (time == null) return;
+        onChanged(time);
+      },
+      icon: const Icon(Icons.schedule_outlined),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: webBlack,
+        side: const BorderSide(color: webBeige),
+        minimumSize: const Size.fromHeight(54),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+  }
+}
+
+String _formatNumber(int value) {
+  return value.toString().replaceAllMapped(
+        RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+        (match) => '${match[1]},',
+      );
 }

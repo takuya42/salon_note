@@ -24,6 +24,9 @@ service cloud.firestore {
         'imagePath',
         'imageBucket',
         'businessHours',
+        'instagramUrl',
+        'lineUrl',
+        'websiteUrl',
         'ownerId',
         'ownerEmail',
         'planType',
@@ -58,7 +61,15 @@ service cloud.firestore {
         'status',
         'source',
         'isNotified',
-        'createdAt'
+        'createdAt',
+        'name',
+        'start',
+        'end',
+        'phone',
+        'menu',
+        'price',
+        'duration',
+        'date'
       ]);
     }
 
@@ -75,7 +86,7 @@ service cloud.firestore {
         && request.resource.data.customerName is string
         && request.resource.data.customerPhone is string
         && request.resource.data.reservationDateTime is timestamp
-        && request.resource.data.status == '予約受付'
+        && request.resource.data.status == 'pending'
         && request.resource.data.source in ['web', 'app', 'line']
         && (
           (request.resource.data.source == 'web'
@@ -83,6 +94,16 @@ service cloud.firestore {
           || (request.resource.data.source != 'web' && signedIn())
         )
         && request.resource.data.isNotified == false
+        && request.resource.data.name is string
+        && request.resource.data.start is timestamp
+        && request.resource.data.end is timestamp
+        && request.resource.data.phone is string
+        && request.resource.data.menu is string
+        && request.resource.data.price is int
+        && request.resource.data.duration is int
+        && request.resource.data.date is timestamp
+        && request.resource.data.start == request.resource.data.reservationDateTime
+        && request.resource.data.date == request.resource.data.reservationDateTime
         && request.resource.data.createdAt == request.time;
     }
 
@@ -101,6 +122,16 @@ service cloud.firestore {
         && request.resource.data.planType in ['free', 'pro'];
 
       allow delete: if isSalonAdmin(shopId);
+
+      match /reservations/{reservationId} {
+        allow read: if isSalonAdmin(shopId);
+        allow create: if isValidReservationCreate()
+          && request.resource.data.shopId == shopId;
+        allow update: if isSalonAdmin(shopId)
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status'])
+          && request.resource.data.status in ['pending', 'confirmed', 'completed', 'cancelled', '予約受付', '来店済み', 'キャンセル'];
+        allow delete: if isSalonAdmin(shopId);
+      }
 
       match /{document=**} {
         allow read, write: if isSalonAdmin(shopId);

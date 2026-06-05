@@ -8,8 +8,15 @@ class WebRoutePaths {
   static String shop(String shopName) =>
       '/$shopSegment/${Uri.encodeComponent(shopName)}';
 
-  static String booking(String shopName) =>
-      '/$bookingSegment/${Uri.encodeComponent(shopName)}';
+  static String booking(String shopId, {String? menuId}) {
+    final path = '/$bookingSegment/${Uri.encodeComponent(shopId)}';
+    if (menuId == null || menuId.trim().isEmpty) {
+      return path;
+    }
+    return Uri(path: path, queryParameters: {
+      'menuId': menuId,
+    }).toString();
+  }
 
   static Uri canonicalShopUri(String shopName) => Uri.https(
         reserveHost,
