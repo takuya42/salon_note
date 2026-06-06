@@ -31,6 +31,26 @@ class PushNotificationService {
     importance: Importance.high,
   );
 
+  static const _initializationSettings = InitializationSettings(
+    android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    iOS: DarwinInitializationSettings(),
+  );
+
+  static const _notificationDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'reservations',
+      '予約通知',
+      channelDescription: 'Web予約が作成されたときの通知',
+      importance: Importance.high,
+      priority: Priority.high,
+    ),
+    iOS: DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    ),
+  );
+
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
@@ -47,10 +67,7 @@ class PushNotificationService {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
     await _localNotifications.initialize(
-      settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: DarwinInitializationSettings(),
-      ),
+      settings: _initializationSettings,
       onDidReceiveNotificationResponse: (response) {
         if (response.payload == _reservationRoutePayload) {
           _requestReservationNavigation();
@@ -142,20 +159,7 @@ class PushNotificationService {
           DateTime.now().millisecondsSinceEpoch.remainder(1 << 31),
       title: title,
       body: body,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'reservations',
-          '予約通知',
-          channelDescription: 'Web予約が作成されたときの通知',
-          importance: Importance.high,
-          priority: Priority.high,
-        ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      ),
+      notificationDetails: _notificationDetails,
       payload: _reservationRoutePayload,
     );
   }
