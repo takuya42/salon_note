@@ -21,7 +21,11 @@ const _reservationChannel = AndroidNotificationChannel(
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
 }
 
 class PushNotificationService {
@@ -34,9 +38,11 @@ class PushNotificationService {
 
   GlobalKey<NavigatorState>? _navigatorKey;
   Map<String, dynamic>? _pendingData;
+  bool _initialized = false;
 
   Future<void> initialize() async {
-    if (kIsWeb) return;
+    if (kIsWeb || _initialized) return;
+    _initialized = true;
 
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
@@ -48,8 +54,8 @@ class PushNotificationService {
       onDidReceiveNotificationResponse: (response) {
         final payload = response.payload;
         if (payload == null || payload.isEmpty) return;
-        final data = Map<String, dynamic>.from(jsonDecode(payload) as Map);
-        _handleData(data);
+        final data = _decodePayload(payload);
+        if (data != null) _handleData(data);
       },
     );
 
@@ -75,9 +81,7 @@ class PushNotificationService {
     if (localLaunch?.didNotificationLaunchApp == true &&
         localPayload != null &&
         localPayload.isNotEmpty) {
-      _pendingData = Map<String, dynamic>.from(
-        jsonDecode(localPayload) as Map,
-      );
+      _pendingData = _decodePayload(localPayload);
     }
 
     FirebaseAuth.instance.authStateChanges().listen((user) async {
@@ -87,7 +91,7 @@ class PushNotificationService {
     });
     messaging.onTokenRefresh.listen((token) async {
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null) await _saveToken(user.uid, token);
+      if (user != null) await _saveTokenSafely(user.uid, token);
     });
   }
 
@@ -99,9 +103,19 @@ class PushNotificationService {
   Future<void> _saveCurrentToken(String uid) async {
     try {
       final token = await FirebaseMessaging.instance.getToken();
-      if (token != null && token.isNotEmpty) await _saveToken(uid, token);
+      if (token != null && token.isNotEmpty) {
+        await _saveTokenSafely(uid, token);
+      }
     } catch (error) {
       debugPrint('FCM token registration failed: $error');
+    }
+  }
+
+  Future<void> _saveTokenSafely(String uid, String token) async {
+    try {
+      await _saveToken(uid, token);
+    } catch (error) {
+      debugPrint('FCM token save failed: $error');
     }
   }
 
@@ -122,7 +136,8 @@ class PushNotificationService {
     final notification = message.notification;
     if (notification == null) return;
     await _localNotifications.show(
-      message.messageId.hashCode,
+      (message.messageId ?? '${notification.title}${notification.body}')
+          .hashCode,
       notification.title,
       notification.body,
       const NotificationDetails(
@@ -137,6 +152,17 @@ class PushNotificationService {
       ),
       payload: jsonEncode(message.data),
     );
+  }
+
+  Map<String, dynamic>? _decodePayload(String payload) {
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map) return null;
+      return Map<String, dynamic>.from(decoded);
+    } catch (error) {
+      debugPrint('FCM notification payload decode failed: $error');
+      return null;
+    }
   }
 
   void _handleMessage(RemoteMessage message) {

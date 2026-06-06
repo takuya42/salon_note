@@ -1,12 +1,14 @@
 function getFcmTokens(user) {
   if (!user) return [];
   const tokens = new Set();
-  if (typeof user.fcmToken === "string" && user.fcmToken.length > 0) {
-    tokens.add(user.fcmToken);
+  if (typeof user.fcmToken === "string" && user.fcmToken.trim().length > 0) {
+    tokens.add(user.fcmToken.trim());
   }
   if (Array.isArray(user.fcmTokens)) {
     for (const token of user.fcmTokens) {
-      if (typeof token === "string" && token.length > 0) tokens.add(token);
+      if (typeof token === "string" && token.trim().length > 0) {
+        tokens.add(token.trim());
+      }
     }
   }
   return [...tokens];
@@ -24,6 +26,7 @@ function buildNotificationBody(reservation) {
 }
 
 function formatReservationDate(value) {
+  if (value === null || value === undefined) return "日時未設定";
   const date = value?.toDate instanceof Function ? value.toDate() : new Date(value);
   if (Number.isNaN(date.getTime())) return "日時未設定";
   const parts = new Intl.DateTimeFormat("ja-JP", {

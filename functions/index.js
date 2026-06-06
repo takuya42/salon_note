@@ -13,6 +13,7 @@ initializeApp();
 
 const REGION = "asia-northeast2";
 const RESERVATIONS_ROUTE = "reservations";
+const RESERVATIONS_CHANNEL = "reservations";
 
 exports.notifyOwnerOfWebReservation = onDocumentCreated(
     {
@@ -28,14 +29,25 @@ exports.notifyOwnerOfWebReservation = onDocumentCreated(
       const {shopId, reservationId} = event.params;
       const db = getFirestore();
       const shopSnapshot = await db.collection("shops").doc(shopId).get();
-      const ownerId = shopSnapshot.get("ownerId");
-      if (typeof ownerId !== "string" || ownerId.length === 0) {
+      const ownerIdValue = shopSnapshot.data()?.ownerId;
+      const ownerId = typeof ownerIdValue === "string" ?
+        ownerIdValue.trim() : "";
+      if (!shopSnapshot.exists || !ownerId) {
         logger.warn("Reservation shop has no ownerId", {shopId, reservationId});
         return;
       }
 
       const userRef = db.collection("users").doc(ownerId);
       const userSnapshot = await userRef.get();
+      if (!userSnapshot.exists) {
+        logger.warn("Reservation owner user document does not exist", {
+          shopId,
+          reservationId,
+          ownerId,
+        });
+        return;
+      }
+
       const tokens = getFcmTokens(userSnapshot.data());
       if (tokens.length === 0) {
         logger.info("Reservation owner has no FCM token", {
@@ -59,7 +71,7 @@ exports.notifyOwnerOfWebReservation = onDocumentCreated(
         },
         android: {
           priority: "high",
-          notification: {channelId: "reservations"},
+          notification: {channelId: RESERVATIONS_CHANNEL},
         },
         apns: {
           payload: {
