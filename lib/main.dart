@@ -82,9 +82,11 @@ class SalonNoteApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      PushNotificationService.instance.attachNavigator(rootNavigatorKey);
-    });
+    if (!kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        PushNotificationService.instance.attachNavigator(rootNavigatorKey);
+      });
+    }
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
