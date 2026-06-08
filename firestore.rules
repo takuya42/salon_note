@@ -34,7 +34,33 @@ service cloud.firestore {
         'ownerEmail',
         'planType',
         'isWebPublished',
-        'isWebBookingEnabled',
+        'createdAt',
+        'updatedAt'
+      ]);
+    }
+
+    function hasOnlyUpdatedShopFields() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'shopId',
+        'shopName',
+        'name',
+        'description',
+        'address',
+        'phone',
+        'imageUrl',
+        'imagePath',
+        'imageBucket',
+        'businessHours',
+        'instagramUrl',
+        'lineUrl',
+        'websiteUrl',
+        'externalLinkTitle',
+        'externalLinkUrl',
+        'paymentMethods',
+        'ownerId',
+        'ownerEmail',
+        'planType',
+        'isWebPublished',
         'createdAt',
         'updatedAt'
       ]);
@@ -77,13 +103,9 @@ service cloud.firestore {
       ]);
     }
 
-    function isShopWebBookingEnabled(shopId) {
+    function isShopWebPublished(shopId) {
       return exists(/databases/$(database)/documents/shops/$(shopId))
-        && get(/databases/$(database)/documents/shops/$(shopId)).data.isWebPublished == true
-        && (
-          !('isWebBookingEnabled' in get(/databases/$(database)/documents/shops/$(shopId)).data)
-          || get(/databases/$(database)/documents/shops/$(shopId)).data.isWebBookingEnabled == true
-        );
+        && get(/databases/$(database)/documents/shops/$(shopId)).data.isWebPublished == true;
     }
 
     function isValidReservationCreate() {
@@ -99,7 +121,7 @@ service cloud.firestore {
         && request.resource.data.source in ['web', 'app', 'line']
         && (
           (request.resource.data.source == 'web'
-            && isShopWebBookingEnabled(request.resource.data.shopId))
+            && isShopWebPublished(request.resource.data.shopId))
           || (request.resource.data.source != 'web' && signedIn())
         )
         && request.resource.data.isNotified == false
@@ -128,7 +150,7 @@ service cloud.firestore {
         && request.resource.data.planType in ['free', 'pro'];
 
       allow update: if isSalonAdmin(shopId)
-        && hasOnlyShopFields()
+        && hasOnlyUpdatedShopFields()
         && request.resource.data.planType in ['free', 'pro'];
 
       allow delete: if isSalonAdmin(shopId);

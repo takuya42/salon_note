@@ -50,7 +50,6 @@ class _WebSettingPageState extends State<WebSettingPage> {
   String _businessHours = '';
   final Set<String> _paymentMethods = <String>{};
   bool _isWebPublished = false;
-  bool _isWebBookingEnabled = false;
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isUploadingImage = false;
@@ -110,7 +109,6 @@ class _WebSettingPageState extends State<WebSettingPage> {
         _imageUrl = setting.imageUrl;
         _businessHours = setting.businessHours;
         _isWebPublished = setting.isWebPublished;
-        _isWebBookingEnabled = setting.isWebBookingEnabled;
         _isProUser = plan == 'pro';
         _isLoading = false;
       });
@@ -165,7 +163,6 @@ class _WebSettingPageState extends State<WebSettingPage> {
               .where(_paymentMethods.contains)
               .toList(),
           isWebPublished: _isWebPublished,
-          isWebBookingEnabled: _isWebBookingEnabled,
         ),
       );
       await _service.saveMenus(
@@ -341,27 +338,6 @@ class _WebSettingPageState extends State<WebSettingPage> {
                     value: _isWebPublished,
                     onChanged: (value) {
                       setState(() => _isWebPublished = value);
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _SettingCard(
-                  child: SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    activeColor: _darkBrown,
-                    title: const Text(
-                      'Web予約を受け付ける',
-                      style: TextStyle(
-                        color: _darkBrown,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      'オンのときだけ公開ページから予約を保存できます',
-                    ),
-                    value: _isWebBookingEnabled,
-                    onChanged: (value) {
-                      setState(() => _isWebBookingEnabled = value);
                     },
                   ),
                 ),

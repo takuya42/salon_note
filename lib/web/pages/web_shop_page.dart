@@ -128,7 +128,6 @@ class WebShopPage extends ConsumerWidget {
                           data: (menus) => _MenuList(
                             menus: menus,
                             shopId: shop.shopId,
-                            isWebBookingEnabled: shop.isWebBookingEnabled,
                           ),
                           loading: () => const WebCard(
                             child: Center(child: CircularProgressIndicator()),
@@ -137,27 +136,25 @@ class WebShopPage extends ConsumerWidget {
                             child: Text('メニューの読み込みに失敗しました。'),
                           ),
                         ),
-                    if (shop.isWebBookingEnabled) ...[
-                      const SizedBox(height: 30),
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          boxShadow: [
-                            BoxShadow(
-                              color: webBrown.withOpacity(0.20),
-                              blurRadius: 28,
-                              offset: const Offset(0, 12),
-                            ),
-                          ],
-                        ),
-                        child: WebPrimaryButton(
-                          label: 'このサロンを予約する',
-                          onPressed: () => Navigator.pushNamed(
-                            context,
-                            WebRoutePaths.booking(shop.shopId),
+                    const SizedBox(height: 30),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            color: webBrown.withOpacity(0.20),
+                            blurRadius: 28,
+                            offset: const Offset(0, 12),
                           ),
+                        ],
+                      ),
+                      child: WebPrimaryButton(
+                        label: 'このサロンを予約する',
+                        onPressed: () => Navigator.pushNamed(
+                          context,
+                          WebRoutePaths.booking(shop.shopId),
                         ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -460,12 +457,10 @@ class _MenuList extends StatelessWidget {
   const _MenuList({
     required this.menus,
     required this.shopId,
-    required this.isWebBookingEnabled,
   });
 
   final List<WebMenu> menus;
   final String shopId;
-  final bool isWebBookingEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -536,24 +531,22 @@ class _MenuList extends StatelessWidget {
                     style: const TextStyle(color: webMuted, height: 1.6),
                   ),
                 ],
-                if (isWebBookingEnabled) ...[
-                  const SizedBox(height: 18),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _confirmMenuBooking(context, menu),
-                      icon: const Icon(Icons.event_available),
-                      label: const Text('予約する'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: webBrown,
-                        side: const BorderSide(color: webGold),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(999),
-                        ),
+                const SizedBox(height: 18),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _confirmMenuBooking(context, menu),
+                    icon: const Icon(Icons.event_available),
+                    label: const Text('予約する'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: webBrown,
+                      side: const BorderSide(color: webGold),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
                       ),
                     ),
                   ),
-                ],
+                ),
               ],
             ),
           ),
