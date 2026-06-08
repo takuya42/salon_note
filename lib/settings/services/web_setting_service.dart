@@ -141,6 +141,14 @@ class WebSettingService {
     return userDoc.data()?['shopId'] as String?;
   }
 
+  Future<String> fetchCurrentUserPlan() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return 'free';
+
+    final userDoc = await _firestore.collection('users').doc(uid).get();
+    return userDoc.data()?['plan'] as String? ?? 'free';
+  }
+
   Future<WebSettingData?> fetchCurrentSetting() async {
     final shopId = await fetchCurrentShopId();
     if (shopId == null) {
