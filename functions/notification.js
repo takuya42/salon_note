@@ -4,18 +4,35 @@ function shouldNotifyWebReservation(reservation) {
 
 function getFcmTokens(user) {
   if (!user) return [];
-  const tokens = new Set();
-  if (typeof user.fcmToken === "string" && user.fcmToken.trim().length > 0) {
-    tokens.add(user.fcmToken.trim());
+
+  const currentToken = normalizeToken(user.fcmToken);
+  if (currentToken) return [currentToken];
+
+  if (!Array.isArray(user.fcmTokens)) return [];
+  // Legacy arrayUnion writes appended refreshed tokens, so the last valid
+  // value is the best available current token when fcmToken is absent.
+  for (let index = user.fcmTokens.length - 1; index >= 0; index--) {
+    const token = normalizeToken(user.fcmTokens[index]);
+    if (token) return [token];
   }
-  if (Array.isArray(user.fcmTokens)) {
-    for (const token of user.fcmTokens) {
-      if (typeof token === "string" && token.trim().length > 0) {
-        tokens.add(token.trim());
-      }
-    }
-  }
-  return [...tokens];
+  return [];
+}
+
+function needsTokenNormalization(user, token) {
+  if (!token) return false;
+  return normalizeToken(user?.fcmToken) !== token ||
+    !Array.isArray(user?.fcmTokens) ||
+    user.fcmTokens.length !== 1 ||
+    normalizeToken(user.fcmTokens[0]) !== token;
+}
+
+function normalizeToken(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function redactFcmTokens(tokens) {
+  return tokens.map((token) =>
+    token.length > 8 ? `...${token.slice(-8)}` : token);
 }
 
 function buildNotificationBody(reservation) {
@@ -55,17 +72,14 @@ function stringOrFallback(value, fallback) {
     value.trim() : fallback;
 }
 
-function summarizeSendFailures(response, tokens) {
-  return response.responses.flatMap((result, index) => {
-    if (result.success) return [];
-    const token = tokens[index] ?? "";
-    return [{
-      index,
-      tokenSuffix: token.length > 8 ? `...${token.slice(-8)}` : token,
-      code: result.error?.code ?? "messaging/unknown-error",
-      message: result.error?.message ?? "Unknown FCM delivery error",
-    }];
-  });
+function summarizeSendResponses(response, tokens) {
+  return response.responses.map((result, index) => ({
+    index,
+    success: result.success,
+    token: redactFcmTokens([tokens[index] ?? ""])[0],
+    code: result.error?.code ?? null,
+    message: result.error?.message ?? null,
+  }));
 }
 
 function isInvalidToken(error) {
@@ -80,6 +94,8 @@ module.exports = {
   formatReservationDate,
   getFcmTokens,
   isInvalidToken,
+  needsTokenNormalization,
+  redactFcmTokens,
   shouldNotifyWebReservation,
-  summarizeSendFailures,
+  summarizeSendResponses,
 };
