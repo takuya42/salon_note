@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'web_business_hours.dart';
 import 'web_booking_settings.dart';
 
 class WebShop {
@@ -12,6 +13,7 @@ class WebShop {
     required this.imageUrl,
     required this.imagePath,
     required this.businessHours,
+    required this.closedWeekdays,
     required this.instagramUrl,
     required this.lineUrl,
     required this.websiteUrl,
@@ -34,6 +36,7 @@ class WebShop {
   final String imageUrl;
   final String imagePath;
   final String businessHours;
+  final Set<int> closedWeekdays;
   final String instagramUrl;
   final String lineUrl;
   final String websiteUrl;
@@ -48,6 +51,8 @@ class WebShop {
   final DateTime? createdAt;
 
   bool get isProPlan => planType == 'pro';
+
+  bool isClosedDay(DateTime date) => closedWeekdays.contains(date.weekday);
 
   factory WebShop.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
@@ -66,6 +71,7 @@ class WebShop {
       imageUrl: imageUrl,
       imagePath: imagePath,
       businessHours: (data['businessHours'] as String?) ?? '',
+      closedWeekdays: readClosedWeekdays(data),
       instagramUrl: ((data['instagramUrl'] as String?) ?? '').trim(),
       lineUrl: ((data['lineUrl'] as String?) ?? '').trim(),
       websiteUrl: ((data['websiteUrl'] as String?) ?? '').trim(),
@@ -97,6 +103,7 @@ class WebShop {
       'imageUrl': imageUrl,
       'imagePath': imagePath,
       'businessHours': businessHours,
+      'closedWeekdays': closedWeekdays.toList()..sort(),
       'instagramUrl': instagramUrl,
       'lineUrl': lineUrl,
       'websiteUrl': websiteUrl,

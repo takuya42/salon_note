@@ -104,6 +104,7 @@ class _BusinessSettingPageState extends State<BusinessSettingPage> {
 
     await shopRef.set({
       "businessHours": _formatBusinessHours(closedDays),
+      "closedWeekdays": closedDays,
       "updatedAt": FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 

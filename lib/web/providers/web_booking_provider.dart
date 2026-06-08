@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/web_business_hours.dart';
 import '../models/web_reservation.dart';
 import '../services/web_booking_service.dart';
 
@@ -75,7 +76,7 @@ final webBookingProvider =
 class WebBookingController extends StateNotifier<WebBookingState> {
   WebBookingController(this._bookingService) : super(const WebBookingState());
 
-  final WebBookingService _bookingService;
+  final WebReservationCreator _bookingService;
 
   void setCustomerName(String value) {
     state = state.copyWith(customerName: value, clearError: true);
@@ -97,7 +98,15 @@ class WebBookingController extends StateNotifier<WebBookingState> {
     state = state.copyWith(reservationDateTime: value, clearError: true);
   }
 
-  void setReservationDate(DateTime value) {
+  bool setReservationDate(
+    DateTime value, {
+    required Iterable<int> closedWeekdays,
+  }) {
+    if (isClosedDay(value, closedWeekdays)) {
+      state = state.copyWith(errorMessage: closedDayBookingMessage);
+      return false;
+    }
+
     final current = state.reservationDateTime;
     state = state.copyWith(
       reservationDateTime: DateTime(
@@ -109,6 +118,11 @@ class WebBookingController extends StateNotifier<WebBookingState> {
       ),
       clearError: true,
     );
+    return true;
+  }
+
+  void showClosedDayError() {
+    state = state.copyWith(errorMessage: closedDayBookingMessage);
   }
 
   void setReservationTime(TimeOfDay value) {
@@ -127,12 +141,21 @@ class WebBookingController extends StateNotifier<WebBookingState> {
     );
   }
 
-  Future<String?> submit(String shopId) async {
+  Future<String?> submit(
+    String shopId, {
+    required Iterable<int> closedWeekdays,
+  }) async {
     if (!state.canSubmit) {
       state = state.copyWith(
         errorMessage:
             'お名前・電話番号・正しいメールアドレス・メニュー・日時を入力してください。',
       );
+      return null;
+    }
+
+    final selectedDate = state.reservationDateTime!;
+    if (isClosedDay(selectedDate, closedWeekdays)) {
+      state = state.copyWith(errorMessage: closedDayBookingMessage);
       return null;
     }
 
@@ -156,9 +179,13 @@ class WebBookingController extends StateNotifier<WebBookingState> {
       state = state.copyWith(isSubmitting: false);
       return reservationId;
     } catch (error) {
+      final isClosedDayError =
+          error.toString().contains(closedDayBookingMessage);
       state = state.copyWith(
         isSubmitting: false,
-        errorMessage: '予約の保存に失敗しました。時間をおいて再度お試しください。',
+        errorMessage: isClosedDayError
+            ? closedDayBookingMessage
+            : '予約の保存に失敗しました。時間をおいて再度お試しください。',
       );
       return null;
     }

@@ -1,10 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import '../models/web_business_hours.dart';
 import '../models/web_reservation.dart';
 import 'web_reservation_extension_service.dart';
 
-class WebBookingService {
+abstract interface class WebReservationCreator {
+  Future<String> createReservation(WebReservation reservation);
+}
+
+class WebBookingService implements WebReservationCreator {
   WebBookingService({
     FirebaseFirestore? firestore,
     WebReservationExtensionService? extensionService,
@@ -15,6 +20,7 @@ class WebBookingService {
   final FirebaseFirestore _firestore;
   final WebReservationExtensionService _extensionService;
 
+  @override
   Future<String> createReservation(WebReservation reservation) async {
     debugPrint('WEB BOOKING DATA');
     debugPrint('shopId => ${reservation.shopId}');
@@ -86,6 +92,18 @@ class WebBookingService {
           'WEB BOOKING PAYLOAD TYPE $field => ${value.runtimeType} '
           '(value: $value)',
         );
+      }
+
+      final selectedDate = reservationWithId.reservationDateTime;
+      final shopSnapshot = await _firestore
+          .collection('shops')
+          .doc(reservationWithId.shopId)
+          .get();
+      final closedWeekdays = readClosedWeekdays(
+        shopSnapshot.data() ?? const <String, dynamic>{},
+      );
+      if (isClosedDay(selectedDate, closedWeekdays)) {
+        throw Exception(closedDayBookingMessage);
       }
 
       await docRef.set(data);
