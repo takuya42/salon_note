@@ -7,11 +7,11 @@ import '../widgets/web_design_widgets.dart';
 class WebCompletePage extends ConsumerWidget {
   const WebCompletePage({
     super.key,
-    this.shopName,
+    this.shopId,
     this.reservationDateTime,
   });
 
-  final String? shopName;
+  final String? shopId;
   final DateTime? reservationDateTime;
 
   String _formatDateTime(DateTime value) {
@@ -25,7 +25,7 @@ class WebCompletePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final shopAsync =
-        shopName == null ? null : ref.watch(webShopProvider(shopName!));
+        shopId == null ? null : ref.watch(webPublishedShopProvider(shopId!));
 
     return WebPageShell(
       child: Padding(

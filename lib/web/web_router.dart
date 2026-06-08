@@ -25,7 +25,7 @@ class WebRouter {
 
     if (uri.pathSegments.length == 2 &&
         uri.pathSegments.first == WebRoutePaths.shopSegment) {
-      return _material(settings, WebShopPage(shopName: uri.pathSegments[1]));
+      return _material(settings, WebShopPage(shopId: uri.pathSegments[1]));
     }
 
     if (uri.pathSegments.length == 2 &&
@@ -43,7 +43,7 @@ class WebRouter {
       return _material(
         settings,
         WebCompletePage(
-          shopName: uri.queryParameters['shopName'],
+          shopId: uri.queryParameters['shopId'],
           reservationDateTime: DateTime.tryParse(
             uri.queryParameters['reservationDateTime'] ?? '',
           ),

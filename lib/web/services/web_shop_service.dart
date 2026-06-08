@@ -1,7 +1,4 @@
-// ignore_for_file: avoid_print
-
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 
 import '../models/web_menu.dart';
 import '../models/web_shop.dart';
@@ -12,80 +9,32 @@ class WebShopService {
 
   final FirebaseFirestore _firestore;
 
-  Stream<WebShop?> watchShop(String shopName) {
-    return _firestore
-        .collection('shops')
-        .where('name', isEqualTo: shopName)
-        .limit(1)
-        .snapshots()
-        .map((snapshot) {
+  Stream<WebShop?> watchPublishedShopById(String shopId) {
+    return _publishedShopQuery(shopId).snapshots().map((snapshot) {
       if (snapshot.docs.isEmpty) {
         return null;
       }
-
-      print('WEB SHOP FOUND');
-      print('docId => ${snapshot.docs.first.id}');
-      print('shopId => ${snapshot.docs.first.data()['shopId']}');
-      print('name => ${snapshot.docs.first.data()['name']}');
-      print(
-        'isWebPublished => '
-        '${snapshot.docs.first.data()['isWebPublished']}',
-      );
-      print(
-        'isWebBookingEnabled => '
-        '${snapshot.docs.first.data()['isWebBookingEnabled']}',
-      );
-
       return WebShop.fromFirestore(snapshot.docs.first);
     });
   }
 
-  Stream<WebShop?> watchShopById(String shopId) {
-    return _firestore
-        .collection('shops')
-        .doc(shopId.trim())
-        .snapshots()
-        .map((snapshot) {
-      if (!snapshot.exists) {
-        return null;
-      }
-
-      return WebShop.fromFirestore(snapshot);
-    });
-  }
-
-  Future<WebShop?> fetchShopById(String shopId) async {
-    final snapshot =
-        await _firestore.collection('shops').doc(shopId.trim()).get();
-
-    if (!snapshot.exists) {
-      return null;
-    }
-
-    return WebShop.fromFirestore(snapshot);
-  }
-
-  Future<WebShop?> fetchShop(String shopName) async {
-    final snapshot = await _firestore
-        .collection('shops')
-        .where('name', isEqualTo: shopName)
-        .limit(1)
-        .get();
-
+  Future<WebShop?> fetchPublishedShopById(String shopId) async {
+    final snapshot = await _publishedShopQuery(shopId).get();
     if (snapshot.docs.isEmpty) {
       return null;
     }
-
     return WebShop.fromFirestore(snapshot.docs.first);
   }
 
-  Stream<List<WebShop>> watchLatestShops({int limit = 50}) {
+  Stream<List<WebShop>> watchPublishedShops({int limit = 50}) {
     return _firestore
         .collection('shops')
+        .where('isWebPublished', isEqualTo: true)
+        .limit(limit)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs.map(WebShop.fromFirestore).toList(),
-    );
+        );
   }
 
   Stream<List<WebMenu>> watchMenus(String shopId) {
@@ -109,9 +58,14 @@ class WebShopService {
         });
 
       return menus;
-    }).handleError((Object error) {
-      debugPrint('MENU ERROR => $error');
-      throw error;
     });
+  }
+
+  Query<Map<String, dynamic>> _publishedShopQuery(String shopId) {
+    return _firestore
+        .collection('shops')
+        .where(FieldPath.documentId, isEqualTo: shopId.trim())
+        .where('isWebPublished', isEqualTo: true)
+        .limit(1);
   }
 }

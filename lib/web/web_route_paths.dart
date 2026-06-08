@@ -1,25 +1,36 @@
 class WebRoutePaths {
   const WebRoutePaths._();
 
+  static const reserveScheme = 'https';
   static const reserveHost = 'reserve.salonnote.jp';
   static const shopSegment = 'shop';
   static const bookingSegment = 'booking';
 
-  static String shop(String shopName) =>
-      '/$shopSegment/${Uri.encodeComponent(shopName)}';
+  static String shop(String shopId) =>
+      '/$shopSegment/${Uri.encodeComponent(shopId.trim())}';
 
   static String booking(String shopId, {String? menuId}) {
-    final path = '/$bookingSegment/${Uri.encodeComponent(shopId)}';
-    if (menuId == null || menuId.trim().isEmpty) {
-      return path;
-    }
-    return Uri(path: path, queryParameters: {
-      'menuId': menuId,
-    }).toString();
+    final uri = Uri(
+      pathSegments: <String>[bookingSegment, shopId.trim()],
+      queryParameters: menuId == null || menuId.trim().isEmpty
+          ? null
+          : <String, String>{'menuId': menuId.trim()},
+    );
+    return '/$uri';
   }
 
-  static Uri canonicalShopUri(String shopName) => Uri.https(
-        reserveHost,
-        '',
-      ).replace(pathSegments: [shopSegment, shopName]);
+  static Uri shopUri(String shopId) => Uri(
+        scheme: reserveScheme,
+        host: reserveHost,
+        pathSegments: <String>[shopSegment, shopId.trim()],
+      );
+
+  static Uri bookingUri(String shopId, {String? menuId}) => Uri(
+        scheme: reserveScheme,
+        host: reserveHost,
+        pathSegments: <String>[bookingSegment, shopId.trim()],
+        queryParameters: menuId == null || menuId.trim().isEmpty
+            ? null
+            : <String, String>{'menuId': menuId.trim()},
+      );
 }
