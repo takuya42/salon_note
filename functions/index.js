@@ -7,6 +7,7 @@ const {
   buildNotificationBody,
   getFcmTokens,
   isInvalidToken,
+  shouldNotifyWebReservation,
 } = require("./notification");
 
 initializeApp();
@@ -22,7 +23,7 @@ exports.notifyOwnerOfWebReservation = onDocumentCreated(
     },
     async (event) => {
       const reservation = event.data?.data();
-      if (!reservation || reservation.source !== "web") {
+      if (!shouldNotifyWebReservation(reservation)) {
         return;
       }
 

@@ -1,3 +1,7 @@
+function shouldNotifyWebReservation(reservation) {
+  return reservation?.source === "web";
+}
+
 function getFcmTokens(user) {
   if (!user) return [];
   const tokens = new Set();
@@ -19,7 +23,10 @@ function buildNotificationBody(reservation) {
       reservation.customerName ?? reservation.name,
       "お名前未設定",
   );
-  const menuName = stringOrFallback(reservation.menu, "メニュー未設定");
+  const menuName = stringOrFallback(
+      reservation.menuName ?? reservation.menu,
+      "メニュー未設定",
+  );
   const date = reservation.reservationDateTime ??
     reservation.start ?? reservation.date;
   return `${customerName}\n${formatReservationDate(date)}\n${menuName}`;
@@ -60,4 +67,5 @@ module.exports = {
   formatReservationDate,
   getFcmTokens,
   isInvalidToken,
+  shouldNotifyWebReservation,
 };
