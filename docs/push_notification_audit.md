@@ -2,12 +2,13 @@
 
 ## 結論
 
-コード上で確認できた主な問題は次の2点です。
+コード上で確認できた主な問題は次の3点です。
 
-1. iOSではAPNsトークンが発行される前にFCMトークンを取得すると失敗します。従来実装は権限要求直後に `getToken()` を一度呼ぶため、`apns-token-not-set` 相当の競合が起きた場合にFirestoreへ有効な実機トークンを保存できない可能性がありました。
-2. Cloud Functionsは一部または全件失敗でも常に `Sent web reservation notification` を出していました。`failureCount` は「関数の失敗」ではなく、マルチキャスト対象トークンごとのFCM受付失敗数です。
+1. クライアントが `fcmTokens` を `arrayUnion` で更新していたため、トークン更新・再インストール・端末変更のたびに旧トークンが残りました。
+2. Cloud Functionsが `fcmToken` だけでなく `fcmTokens` 内の異なる旧トークンも送信していたため、最新実機への送信が成功しても旧トークン分の `failureCount` が発生し得ました。
+3. iOSではAPNsトークンが発行される前にFCMトークンを取得すると失敗します。APNsトークン待機は実装済みですが、Firebase Console側のAPNsキー状態はリポジトリだけでは確認できません。
 
-今回、APNsトークンを確認してからFCMトークンを取得し、権限状態・APNs/FCMトークン末尾・トークン更新エラーを診断ログへ出すようにしました。Functions側は失敗レスポンスをトークンの配列位置と対応付け、トークン全体を漏らさずエラーコードを出し、失敗がある場合は成功ログを出さないようにしました。
+今回、`fcmToken` を最新トークンとして単一化し、`fcmTokens` も同じ1件へ置換するようにしました。Functions側は送信前にも旧データを正規化し、全レスポンスを配列位置と対応付けて診断ログへ出します。
 
 ただし、リポジトリだけではFirebase Consoleに登録されたAPNsキーの Key ID / Team ID / 対象Firebase iOSアプリ、Apple DeveloperのApp IDとプロビジョニングプロファイル、実機の通知設定は検証できません。最終原因は修正後の `FCM delivery failed` の `code` と実機ログで確定してください。
 
@@ -22,13 +23,14 @@
 
 ### 2. `response.responses` のエラーログ
 
-従来のインデックス対応は正しかったものの、以下が問題でした。
+修正後は次の構造化ログを出します。
 
-- FCMトークン全体をログに出していた。
-- `failureCount > 0` でも最後に成功を示すメッセージを出していた。
-- 集計ログから対象トークン数が分からなかった。
+- 送信前: `tokenCount`、マスク済み `tokens`。
+- 送信後: `tokenCount`、`tokens`、`successCount`、`failureCount`。
+- `response.responses` 全件: `index`、`success`、マスク済みトークン、`code`、`message`。
+- `failureCount > 0`: 集計と全レスポンスを `FCM delivery failed` としてエラーログ出力。
 
-修正後は、失敗ごとに `index`、`tokenSuffix`、`code`、`message` を記録し、集計に `tokenCount`、`successCount`、`failureCount` を記録します。
+FCMトークン全体は通知先を特定できる値なので、ログには末尾8文字だけを出します。
 
 ### 3. APNs / Xcode設定
 
@@ -93,7 +95,7 @@ Firebase Consoleでは、プロジェクト `salon-note` のiOSアプリ `com.ko
 - `messaging/invalid-argument`: トークン形式、Bundle ID、payload等を確認します。
 - `messaging/server-unavailable` / `messaging/internal-error`: 一時障害。指数バックオフ付き再試行の対象です。
 
-`fcmToken` と `fcmTokens` の両方に同じ値がある場合はSetで重複排除されるため、それ自体はfailureCountの原因ではありません。一方、`fcmTokens` に過去端末やシミュレータの古いトークンが残っていれば、最新実機への1件が成功しても古い1件のために `failureCount=1` になります。
+従来は `fcmToken` と `fcmTokens` をSetで重複排除した後も、配列内の異なる旧トークンをすべて送信していました。そのため、最新実機への1件が成功しても、再インストール前・旧端末・シミュレータのトークンにより `failureCount=1` 以上になるのがコード上の直接原因でした。修正後は `fcmToken` の1件だけを送信し、配列も同じ1件へ正規化します。
 
 ## 最有力の原因
 

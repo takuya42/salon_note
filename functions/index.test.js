@@ -5,8 +5,10 @@ const {
   buildNotificationBody,
   formatReservationDate,
   getFcmTokens,
+  needsTokenNormalization,
+  redactFcmTokens,
   shouldNotifyWebReservation,
-  summarizeSendFailures,
+  summarizeSendResponses,
 } = require("./notification");
 
 test("builds the requested three-line notification body", () => {
@@ -20,21 +22,50 @@ test("builds the requested three-line notification body", () => {
 
 test("formats reservation dates in Asia/Tokyo", () => {
   assert.equal(
-      formatReservationDate(new Date("2026-12-31T15:30:00.000Z")),
-      "2027/01/01 00:30",
+    formatReservationDate(new Date("2026-12-31T15:30:00.000Z")),
+    "2027/01/01 00:30",
   );
 });
 
-test("deduplicates current and legacy token fields", () => {
+test("uses only fcmToken when current and legacy token fields exist", () => {
   assert.deepEqual(
-      getFcmTokens({fcmToken: "one", fcmTokens: ["one", "two", ""]}),
-      ["one", "two"],
+    getFcmTokens({ fcmToken: "one", fcmTokens: ["old", "one"] }),
+    ["one"],
+  );
+});
+
+test("uses the last valid legacy token when fcmToken is absent", () => {
+  assert.deepEqual(getFcmTokens({ fcmTokens: ["old", "", " latest "] }), [
+    "latest",
+  ]);
+});
+
+test("detects token fields that need normalization", () => {
+  assert.equal(
+    needsTokenNormalization(
+      {
+        fcmToken: "latest",
+        fcmTokens: ["old", "latest"],
+      },
+      "latest",
+    ),
+    true,
+  );
+  assert.equal(
+    needsTokenNormalization(
+      {
+        fcmToken: "latest",
+        fcmTokens: ["latest"],
+      },
+      "latest",
+    ),
+    false,
   );
 });
 
 test("only web reservations trigger owner notifications", () => {
-  assert.equal(shouldNotifyWebReservation({source: "web"}), true);
-  assert.equal(shouldNotifyWebReservation({source: "app"}), false);
+  assert.equal(shouldNotifyWebReservation({ source: "web" }), true);
+  assert.equal(shouldNotifyWebReservation({ source: "app" }), false);
   assert.equal(shouldNotifyWebReservation({}), false);
   assert.equal(shouldNotifyWebReservation(null), false);
 });
@@ -49,17 +80,33 @@ test("uses an explicit menu name when the reservation provides one", () => {
   assert.equal(body, "佐藤花子\n2026/06/10 11:30\nカラー");
 });
 
-test("maps multicast failures to the matching token without logging secrets", () => {
-  const error = {code: "messaging/third-party-auth-error", message: "APNs rejected"};
-  const failures = summarizeSendFailures(
-      {responses: [{success: true}, {success: false, error}]},
-      ["first-token", "sensitive-second-token"],
-  );
-
-  assert.deepEqual(failures, [{
-    index: 1,
-    tokenSuffix: "...nd-token",
+test("summarizes every multicast response without logging full tokens", () => {
+  const error = {
     code: "messaging/third-party-auth-error",
     message: "APNs rejected",
-  }]);
+  };
+  const responses = summarizeSendResponses(
+    { responses: [{ success: true }, { success: false, error }] },
+    ["first-token", "sensitive-second-token"],
+  );
+
+  assert.deepEqual(responses, [
+    {
+      index: 0,
+      success: true,
+      token: "...st-token",
+      code: null,
+      message: null,
+    },
+    {
+      index: 1,
+      success: false,
+      token: "...nd-token",
+      code: "messaging/third-party-auth-error",
+      message: "APNs rejected",
+    },
+  ]);
+  assert.deepEqual(redactFcmTokens(["sensitive-second-token"]), [
+    "...nd-token",
+  ]);
 });

@@ -172,10 +172,10 @@ class PushNotificationService {
   Future<void> _saveToken(String uid, String token) {
     return FirebaseFirestore.instance.collection('users').doc(uid).set(
       {
-        // fcmToken keeps the requested single-token field compatible, while
-        // fcmTokens supports owners signed in on multiple devices.
+        // Keep one canonical token per owner. Replacing the array removes
+        // tokens left behind by refreshes, reinstalls, or previous devices.
         'fcmToken': token,
-        'fcmTokens': FieldValue.arrayUnion([token]),
+        'fcmTokens': [token],
         'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
