@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/web_business_hours.dart';
 import '../models/web_menu.dart';
 import '../providers/web_booking_provider.dart';
 import '../providers/web_shop_provider.dart';
@@ -152,7 +153,21 @@ class _WebBookingPageState extends ConsumerState<WebBookingPage> {
                       const SizedBox(height: 16),
                       _DateSelector(
                         selectedDateTime: bookingState.reservationDateTime,
-                        onChanged: bookingController.setReservationDate,
+                        closedWeekdays: shop.closedWeekdays,
+                        onChanged: (date) {
+                          bookingController.setReservationDate(
+                            date,
+                            closedWeekdays: shop.closedWeekdays,
+                          );
+                        },
+                        onClosedDaySelected: () {
+                          bookingController.showClosedDayError();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(closedDayBookingMessage),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 12),
                       _TimeSelector(
@@ -172,8 +187,11 @@ class _WebBookingPageState extends ConsumerState<WebBookingPage> {
                         isLoading: bookingState.isSubmitting,
                         onPressed: bookingState.canSubmit
                             ? () async {
-                                final reservationId =
-                                    await bookingController.submit(shop.shopId);
+                                final reservationId = await bookingController
+                                    .submit(
+                                  shop.shopId,
+                                  closedWeekdays: shop.closedWeekdays,
+                                );
                                 if (reservationId == null || !context.mounted) {
                                   return;
                                 }
@@ -354,11 +372,15 @@ class _SelectedMenuSummary extends StatelessWidget {
 class _DateSelector extends StatelessWidget {
   const _DateSelector({
     required this.selectedDateTime,
+    required this.closedWeekdays,
     required this.onChanged,
+    required this.onClosedDaySelected,
   });
 
   final DateTime? selectedDateTime;
+  final Set<int> closedWeekdays;
   final ValueChanged<DateTime> onChanged;
+  final VoidCallback onClosedDaySelected;
 
   String _formatDate(DateTime value) {
     final month = value.month.toString().padLeft(2, '0');
@@ -375,12 +397,19 @@ class _DateSelector extends StatelessWidget {
     return OutlinedButton.icon(
       onPressed: () async {
         final now = DateTime.now();
-        final date = await showDatePicker(
+        final firstDate = DateTime(now.year, now.month, now.day);
+        final lastDate = firstDate.add(const Duration(days: 120));
+        final initialDate = selectedDateTime ??
+            firstDate.add(const Duration(days: 1));
+        final date = await showDialog<DateTime>(
           context: context,
-          initialDate: selectedDateTime ?? now.add(const Duration(days: 1)),
-          firstDate: DateTime(now.year, now.month, now.day),
-          lastDate: now.add(const Duration(days: 120)),
-          locale: const Locale('ja'),
+          builder: (context) => _BookingDatePickerDialog(
+            initialDate: initialDate,
+            firstDate: firstDate,
+            lastDate: lastDate,
+            closedWeekdays: closedWeekdays,
+            onClosedDaySelected: onClosedDaySelected,
+          ),
         );
         if (date == null) return;
         onChanged(date);
@@ -395,6 +424,203 @@ class _DateSelector extends StatelessWidget {
       ),
     );
   }
+}
+
+class _BookingDatePickerDialog extends StatefulWidget {
+  const _BookingDatePickerDialog({
+    required this.initialDate,
+    required this.firstDate,
+    required this.lastDate,
+    required this.closedWeekdays,
+    required this.onClosedDaySelected,
+  });
+
+  final DateTime initialDate;
+  final DateTime firstDate;
+  final DateTime lastDate;
+  final Set<int> closedWeekdays;
+  final VoidCallback onClosedDaySelected;
+
+  @override
+  State<_BookingDatePickerDialog> createState() =>
+      _BookingDatePickerDialogState();
+}
+
+class _BookingDatePickerDialogState extends State<_BookingDatePickerDialog> {
+  late DateTime _displayedMonth;
+  bool _showClosedDayError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayedMonth = DateTime(
+      widget.initialDate.year,
+      widget.initialDate.month,
+    );
+  }
+
+  bool get _canShowPreviousMonth {
+    final firstMonth = DateTime(widget.firstDate.year, widget.firstDate.month);
+    return _displayedMonth.isAfter(firstMonth);
+  }
+
+  bool get _canShowNextMonth {
+    final lastMonth = DateTime(widget.lastDate.year, widget.lastDate.month);
+    return _displayedMonth.isBefore(lastMonth);
+  }
+
+  void _changeMonth(int offset) {
+    setState(() {
+      _displayedMonth = DateTime(
+        _displayedMonth.year,
+        _displayedMonth.month + offset,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final firstOfMonth = _displayedMonth;
+    final daysInMonth =
+        DateTime(firstOfMonth.year, firstOfMonth.month + 1, 0).day;
+    final leadingBlankDays = firstOfMonth.weekday - DateTime.monday;
+    final itemCount = leadingBlankDays + daysInMonth;
+
+    return AlertDialog(
+      titlePadding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+      contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      title: Row(
+        children: [
+          IconButton(
+            onPressed: _canShowPreviousMonth ? () => _changeMonth(-1) : null,
+            icon: const Icon(Icons.chevron_left),
+          ),
+          Expanded(
+            child: Text(
+              '${firstOfMonth.year}年${firstOfMonth.month}月',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          ),
+          IconButton(
+            onPressed: _canShowNextMonth ? () => _changeMonth(1) : null,
+            icon: const Icon(Icons.chevron_right),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 360,
+        height: 370,
+        child: Column(
+          children: [
+            Row(
+              children: [
+                for (final label in const ['月', '火', '水', '木', '金', '土', '日'])
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          color: webMuted,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  mainAxisSpacing: 6,
+                  crossAxisSpacing: 6,
+                ),
+                itemCount: itemCount,
+                itemBuilder: (context, index) {
+                  if (index < leadingBlankDays) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final date = DateTime(
+                    firstOfMonth.year,
+                    firstOfMonth.month,
+                    index - leadingBlankDays + 1,
+                  );
+                  final isOutsideRange = date.isBefore(widget.firstDate) ||
+                      date.isAfter(widget.lastDate);
+                  final isClosed = isClosedDay(date, widget.closedWeekdays);
+                  final isSelected = _isSameDay(
+                    date,
+                    widget.initialDate,
+                  );
+
+                  return Material(
+                    color: isClosed
+                        ? Colors.grey.shade200
+                        : isSelected
+                            ? webBeige
+                            : Colors.transparent,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: isOutsideRange
+                          ? null
+                          : isClosed
+                              ? () {
+                                  setState(() {
+                                    _showClosedDayError = true;
+                                  });
+                                  widget.onClosedDaySelected();
+                                }
+                              : () => Navigator.pop(context, date),
+                      child: Center(
+                        child: Text(
+                          '${date.day}',
+                          style: TextStyle(
+                            color: isOutsideRange || isClosed
+                                ? Colors.grey
+                                : webBlack,
+                            decoration:
+                                isClosed ? TextDecoration.lineThrough : null,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const Text(
+              'グレーの日付は定休日です。',
+              style: TextStyle(color: webMuted, fontSize: 12),
+            ),
+            if (_showClosedDayError)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text(
+                  closedDayBookingMessage,
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('キャンセル'),
+        ),
+      ],
+    );
+  }
+}
+
+bool _isSameDay(DateTime first, DateTime second) {
+  return first.year == second.year &&
+      first.month == second.month &&
+      first.day == second.day;
 }
 
 class _TimeSelector extends StatelessWidget {
