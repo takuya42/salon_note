@@ -55,6 +55,19 @@ function stringOrFallback(value, fallback) {
     value.trim() : fallback;
 }
 
+function summarizeSendFailures(response, tokens) {
+  return response.responses.flatMap((result, index) => {
+    if (result.success) return [];
+    const token = tokens[index] ?? "";
+    return [{
+      index,
+      tokenSuffix: token.length > 8 ? `...${token.slice(-8)}` : token,
+      code: result.error?.code ?? "messaging/unknown-error",
+      message: result.error?.message ?? "Unknown FCM delivery error",
+    }];
+  });
+}
+
 function isInvalidToken(error) {
   return [
     "messaging/invalid-registration-token",
@@ -68,4 +81,5 @@ module.exports = {
   getFcmTokens,
   isInvalidToken,
   shouldNotifyWebReservation,
+  summarizeSendFailures,
 };

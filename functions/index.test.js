@@ -6,6 +6,7 @@ const {
   formatReservationDate,
   getFcmTokens,
   shouldNotifyWebReservation,
+  summarizeSendFailures,
 } = require("./notification");
 
 test("builds the requested three-line notification body", () => {
@@ -46,4 +47,19 @@ test("uses an explicit menu name when the reservation provides one", () => {
     menu: "legacy-menu-id",
   });
   assert.equal(body, "佐藤花子\n2026/06/10 11:30\nカラー");
+});
+
+test("maps multicast failures to the matching token without logging secrets", () => {
+  const error = {code: "messaging/third-party-auth-error", message: "APNs rejected"};
+  const failures = summarizeSendFailures(
+      {responses: [{success: true}, {success: false, error}]},
+      ["first-token", "sensitive-second-token"],
+  );
+
+  assert.deepEqual(failures, [{
+    index: 1,
+    tokenSuffix: "...nd-token",
+    code: "messaging/third-party-auth-error",
+    message: "APNs rejected",
+  }]);
 });

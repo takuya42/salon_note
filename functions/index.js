@@ -8,6 +8,7 @@ const {
   getFcmTokens,
   isInvalidToken,
   shouldNotifyWebReservation,
+  summarizeSendFailures,
 } = require("./notification");
 
 initializeApp();
@@ -75,6 +76,10 @@ exports.notifyOwnerOfWebReservation = onDocumentCreated(
           notification: {channelId: RESERVATIONS_CHANNEL},
         },
         apns: {
+          headers: {
+            "apns-push-type": "alert",
+            "apns-priority": "10",
+          },
           payload: {
             aps: {
               sound: "default",
@@ -83,7 +88,6 @@ exports.notifyOwnerOfWebReservation = onDocumentCreated(
           },
         },
       });
-
 
       const invalidTokens = response.responses
           .map((result, index) =>
@@ -96,22 +100,28 @@ exports.notifyOwnerOfWebReservation = onDocumentCreated(
         }
         await userRef.update(updates);
       }
-      response.responses.forEach((resp, index) => {
-        if (!resp.success) {
-          logger.error("FCM ERROR", {
-            token: tokens[index],
-            code: resp.error?.code,
-            message: resp.error?.message,
-          });
-        }
+      const failures = summarizeSendFailures(response, tokens);
+      failures.forEach((failure) => {
+        logger.error("FCM delivery failed", {
+          shopId,
+          reservationId,
+          ownerId,
+          ...failure,
+        });
       });
 
-      logger.info("Sent web reservation notification", {
+      const summary = {
         shopId,
         reservationId,
         ownerId,
+        tokenCount: tokens.length,
         successCount: response.successCount,
         failureCount: response.failureCount,
-      });
+      };
+      if (response.failureCount > 0) {
+        logger.warn("Web reservation notification completed with failures", summary);
+      } else {
+        logger.info("Sent web reservation notification", summary);
+      }
     },
 );
