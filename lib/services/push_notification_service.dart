@@ -47,7 +47,7 @@ class PushNotificationService {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
     await _localNotifications.initialize(
-      const InitializationSettings(
+      settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         iOS: DarwinInitializationSettings(),
       ),
@@ -136,11 +136,11 @@ class PushNotificationService {
     final notification = message.notification;
     if (notification == null) return;
     await _localNotifications.show(
-      (message.messageId ?? '${notification.title}${notification.body}')
+      id: (message.messageId ?? '${notification.title}${notification.body}')
           .hashCode,
-      notification.title,
-      notification.body,
-      const NotificationDetails(
+      title: notification.title,
+      body: notification.body,
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'reservations',
           '予約通知',

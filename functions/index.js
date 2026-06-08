@@ -84,6 +84,7 @@ exports.notifyOwnerOfWebReservation = onDocumentCreated(
         },
       });
 
+
       const invalidTokens = response.responses
           .map((result, index) =>
             isInvalidToken(result.error) ? tokens[index] : null)
@@ -95,6 +96,15 @@ exports.notifyOwnerOfWebReservation = onDocumentCreated(
         }
         await userRef.update(updates);
       }
+      response.responses.forEach((resp, index) => {
+        if (!resp.success) {
+          logger.error("FCM ERROR", {
+            token: tokens[index],
+            code: resp.error?.code,
+            message: resp.error?.message,
+          });
+        }
+      });
 
       logger.info("Sent web reservation notification", {
         shopId,

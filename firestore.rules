@@ -112,8 +112,8 @@ service cloud.firestore {
         && request.resource.data.duration is int
         && request.resource.data.date is timestamp
         && request.resource.data.start == request.resource.data.reservationDateTime
-        && request.resource.data.date == request.resource.data.reservationDateTime
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.date == request.resource.data.reservationDateTime;
+
     }
 
     match /shops/{shopId} {
