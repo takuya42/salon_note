@@ -203,46 +203,9 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
 
                     const SizedBox(height: 8),
 
-                    const Text(
-                      "Web予約機能を利用するにはProプランへの登録が必要です",
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        height: 1.5,
-                      ),
-                    ),
-
                     const SizedBox(height: 16),
 
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFB88484),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.lock_outline, color: Colors.white),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              "Web予約機能はPro限定",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
 
-                    const SizedBox(height: 24),
 
                     _feature("広告なし"),
                     _feature("予約件数 無制限"),
@@ -250,22 +213,22 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                     _feature("売上分析"),
                     _feature(
                       "Web予約機能",
-                      emoji: "🌐",
+
                       description: "お客様が24時間いつでもWebから予約可能",
                     ),
                     _feature(
                       "Instagramリンク掲載",
-                      emoji: "📱",
+
                       description: "店舗ページからInstagramへ誘導可能",
                     ),
                     _feature(
                       "LINEリンク掲載",
-                      emoji: "💬",
+
                       description: "店舗ページからLINEへ誘導可能",
                     ),
                     _feature(
                       "店舗ページ公開",
-                      emoji: "🏪",
+
                       description: "SalonNote上で店舗紹介ページを公開可能",
                     ),
 
