@@ -117,9 +117,10 @@ service cloud.firestore {
     }
 
     match /shops/{shopId} {
-      // Web予約ページ用
-      // 未ログインでも店舗一覧・店舗ページを見れるようにする
-      allow read: if true;
+      // Public web pages may only read published shops. Owners retain access
+      // to their own unpublished shop from the authenticated management app.
+      allow read: if resource.data.isWebPublished == true
+        || (signedIn() && resource.data.ownerId == request.auth.uid);
 
       allow create: if signedIn()
         && hasOnlyShopFields()
@@ -148,7 +149,11 @@ service cloud.firestore {
     }
 
     match /menus/{menuId} {
-      allow read: if true;
+      allow read: if isSalonAdmin(resource.data.shopId)
+        || (
+          exists(/databases/$(database)/documents/shops/$(resource.data.shopId))
+          && get(/databases/$(database)/documents/shops/$(resource.data.shopId)).data.isWebPublished == true
+        );
       allow create: if isSalonAdmin(request.resource.data.shopId) && hasOnlyMenuFields();
       allow update: if isSalonAdmin(resource.data.shopId)
         && request.resource.data.shopId == resource.data.shopId

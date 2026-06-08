@@ -29,18 +29,18 @@ Future<void> _openMapForAddress(String address) async {
 }
 
 class WebShopPage extends ConsumerWidget {
-  const WebShopPage({super.key, required this.shopName});
+  const WebShopPage({super.key, required this.shopId});
 
-  final String shopName;
+  final String shopId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final shopAsync = ref.watch(webShopProvider(shopName));
+    final shopAsync = ref.watch(webPublishedShopProvider(shopId));
 
     return WebPageShell(
       child: shopAsync.when(
         data: (shop) {
-          if (shop == null || !shop.isWebPublished) {
+          if (shop == null) {
             return const _NotFoundContent();
           }
 

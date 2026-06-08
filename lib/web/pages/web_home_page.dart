@@ -44,10 +44,10 @@ class _WebHomePageState extends ConsumerState<WebHomePage> {
     super.dispose();
   }
 
-  void _openShop(BuildContext context, String shopName) {
+  void _openShop(BuildContext context, String shopId) {
     Navigator.pushNamed(
       context,
-      WebRoutePaths.shop(shopName),
+      WebRoutePaths.shop(shopId),
     );
   }
 
@@ -131,20 +131,17 @@ class _WebHomePageState extends ConsumerState<WebHomePage> {
             const SizedBox(height: 24),
             shopsAsync.when(
               data: (shops) {
-                final publishedShops = shops
-                    .where((shop) => shop.isWebPublished)
-                    .toList();
                 final keyword = _searchKeyword.trim().toLowerCase();
                 final filteredShops = keyword.isEmpty
-                    ? publishedShops
-                    : publishedShops
+                    ? shops
+                    : shops
                         .where(
                           (shop) =>
                               shop.shopName.toLowerCase().contains(keyword),
                         )
                         .toList();
 
-                if (publishedShops.isEmpty) {
+                if (shops.isEmpty) {
                   return const WebCard(
                     child: Text(
                       '登録済み店舗がありません。',
@@ -179,9 +176,9 @@ class _WebHomePageState extends ConsumerState<WebHomePage> {
                           padding: const EdgeInsets.only(bottom: 18),
                           child: _ShopCard(
                             shop: shop,
-                            onOpen: shop.shopName.isEmpty
+                            onOpen: shop.shopId.isEmpty
                                 ? null
-                                : () => _openShop(context, shop.shopName),
+                                : () => _openShop(context, shop.shopId),
                           ),
                         ),
                       )

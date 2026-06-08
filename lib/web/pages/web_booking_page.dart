@@ -49,15 +49,15 @@ class _WebBookingPageState extends ConsumerState<WebBookingPage> {
 
   @override
   Widget build(BuildContext context) {
-    final shopAsync = ref.watch(webShopByIdProvider(widget.shopId));
+    final shopAsync = ref.watch(webPublishedShopProvider(widget.shopId));
     final bookingState = ref.watch(webBookingProvider);
     final bookingController = ref.read(webBookingProvider.notifier);
 
     return WebPageShell(
       child: shopAsync.when(
         data: (shop) {
-          if (shop == null || !shop.isWebPublished) {
-            return const Center(child: Text('店舗が見つかりません。'));
+          if (shop == null) {
+            return const Center(child: Text('店舗が見つからないか、現在公開されていません。'));
           }
           if (!shop.isWebBookingEnabled) {
             return const Center(child: Text('現在Web予約を受け付けていません。'));
@@ -71,7 +71,7 @@ class _WebBookingPageState extends ConsumerState<WebBookingPage> {
                 TextButton.icon(
                   onPressed: () => Navigator.pushNamed(
                     context,
-                    WebRoutePaths.shop(shop.shopName),
+                    WebRoutePaths.shop(shop.shopId),
                   ),
                   icon: const Icon(Icons.arrow_back),
                   label: const Text('店舗ページへ戻る'),
@@ -197,7 +197,15 @@ class _WebBookingPageState extends ConsumerState<WebBookingPage> {
                                 }
                                 Navigator.pushNamedAndRemoveUntil(
                                   context,
-                                  '/complete',
+                                  Uri(
+                                    path: '/complete',
+                                    queryParameters: <String, String>{
+                                      'shopId': shop.shopId,
+                                      'reservationDateTime': bookingState
+                                          .reservationDateTime!
+                                          .toIso8601String(),
+                                    },
+                                  ).toString(),
                                   (_) => false,
                                 );
                               }

@@ -114,10 +114,7 @@ class _WebSettingPageState extends State<WebSettingPage> {
         _isProUser = plan == 'pro';
         _isLoading = false;
       });
-    } catch (error, stackTrace) {
-      debugPrint('WEB SETTING PAGE LOAD ERROR => $error');
-      debugPrintStack(stackTrace: stackTrace);
-
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _errorMessage = 'Web公開設定の読み込みに失敗しました。';
@@ -229,17 +226,12 @@ class _WebSettingPageState extends State<WebSettingPage> {
     final shopId = _shopId;
     if (shopId == null || _isUploadingImage) return;
 
-    debugPrint('IMAGE PICK START');
-
     final pickedImage = await _imagePicker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 88,
     );
 
-    debugPrint('IMAGE PICK RESULT => ${pickedImage?.path}');
-
     if (pickedImage == null) {
-      debugPrint('IMAGE PICK CANCELLED');
       return;
     }
 
@@ -250,26 +242,16 @@ class _WebSettingPageState extends State<WebSettingPage> {
     });
 
     try {
-      debugPrint('IMAGE UPLOAD START');
+      final downloadUrl = await _service.uploadShopCoverImage(
+        shopId: shopId,
+        image: pickedImage,
+      );
 
-      try {
-        final downloadUrl = await _service.uploadShopCoverImage(
-          shopId: shopId,
-          image: pickedImage,
-        );
-
-        debugPrint('IMAGE UPLOAD SUCCESS => $downloadUrl');
-
-        if (!mounted) return;
-        setState(() => _imageUrl = downloadUrl);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('店舗画像をアップロードしました')),
-        );
-      } catch (error, stackTrace) {
-        debugPrint('IMAGE UPLOAD ERROR => $error');
-        debugPrintStack(stackTrace: stackTrace);
-        rethrow;
-      }
+      if (!mounted) return;
+      setState(() => _imageUrl = downloadUrl);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('店舗画像をアップロードしました')),
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _errorMessage = '店舗画像のアップロードに失敗しました。');
@@ -285,7 +267,7 @@ class _WebSettingPageState extends State<WebSettingPage> {
     if (shopId == null) return;
 
     await Clipboard.setData(
-      ClipboardData(text: WebRoutePaths.canonicalShopUri(shopId).toString()),
+      ClipboardData(text: WebRoutePaths.shopUri(shopId).toString()),
     );
 
     if (!mounted) return;
@@ -500,7 +482,7 @@ class _WebSettingPageState extends State<WebSettingPage> {
                         ),
                         const SizedBox(height: 10),
                         SelectableText(
-                          WebRoutePaths.canonicalShopUri(_shopId!).toString(),
+                          WebRoutePaths.shopUri(_shopId!).toString(),
                           style: const TextStyle(color: _mutedBrown),
                         ),
                         const SizedBox(height: 16),
