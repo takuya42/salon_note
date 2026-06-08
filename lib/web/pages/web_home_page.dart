@@ -27,8 +27,22 @@ Future<void> _openMapForAddress(String address) async {
   await launchUrl(uri, webOnlyWindowName: '_blank');
 }
 
-class WebHomePage extends ConsumerWidget {
+class WebHomePage extends ConsumerStatefulWidget {
   const WebHomePage({super.key});
+
+  @override
+  ConsumerState<WebHomePage> createState() => _WebHomePageState();
+}
+
+class _WebHomePageState extends ConsumerState<WebHomePage> {
+  final _searchController = TextEditingController();
+  String _searchKeyword = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _openShop(BuildContext context, String shopName) {
     Navigator.pushNamed(
@@ -38,7 +52,7 @@ class WebHomePage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final shopsAsync = ref.watch(webHomeShopsProvider);
 
     return WebPageShell(
@@ -80,10 +94,57 @@ class WebHomePage extends ConsumerWidget {
                 height: 1.5,
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+            TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() => _searchKeyword = value);
+              },
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: '店舗名で検索',
+                hintStyle: const TextStyle(color: webMuted),
+                prefixIcon: const Icon(Icons.search, color: webMuted),
+                suffixIcon: _searchKeyword.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: '検索をクリア',
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchKeyword = '');
+                        },
+                        icon: const Icon(Icons.close, color: webMuted),
+                      ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 17),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: const BorderSide(color: webBeige),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: const BorderSide(color: webGold, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
             shopsAsync.when(
               data: (shops) {
-                if (shops.isEmpty) {
+                final publishedShops = shops
+                    .where((shop) => shop.isWebPublished)
+                    .toList();
+                final keyword = _searchKeyword.trim().toLowerCase();
+                final filteredShops = keyword.isEmpty
+                    ? publishedShops
+                    : publishedShops
+                        .where(
+                          (shop) =>
+                              shop.shopName.toLowerCase().contains(keyword),
+                        )
+                        .toList();
+
+                if (publishedShops.isEmpty) {
                   return const WebCard(
                     child: Text(
                       '登録済み店舗がありません。',
@@ -97,8 +158,22 @@ class WebHomePage extends ConsumerWidget {
                   );
                 }
 
+                if (filteredShops.isEmpty) {
+                  return const WebCard(
+                    child: Text(
+                      '検索条件に一致する店舗がありません。',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: webMuted,
+                        fontSize: 15,
+                        height: 1.6,
+                      ),
+                    ),
+                  );
+                }
+
                 return Column(
-                  children: shops
+                  children: filteredShops
                       .map(
                         (shop) => Padding(
                           padding: const EdgeInsets.only(bottom: 18),

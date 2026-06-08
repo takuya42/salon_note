@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../ payment/pages/subscription_page.dart';
 import '../../web/web_route_paths.dart';
 import '../services/web_setting_service.dart';
 
@@ -53,6 +54,7 @@ class _WebSettingPageState extends State<WebSettingPage> {
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isUploadingImage = false;
+  bool _isProUser = false;
   String? _errorMessage;
   Object? _loadErrorDetail;
 
@@ -79,6 +81,7 @@ class _WebSettingPageState extends State<WebSettingPage> {
   Future<void> _loadSetting() async {
     try {
       final setting = await _service.fetchCurrentSetting();
+      final plan = await _service.fetchCurrentUserPlan();
       if (!mounted) return;
 
       if (setting == null) {
@@ -108,6 +111,7 @@ class _WebSettingPageState extends State<WebSettingPage> {
         _businessHours = setting.businessHours;
         _isWebPublished = setting.isWebPublished;
         _isWebBookingEnabled = setting.isWebBookingEnabled;
+        _isProUser = plan == 'pro';
         _isLoading = false;
       });
     } catch (error, stackTrace) {
@@ -125,12 +129,7 @@ class _WebSettingPageState extends State<WebSettingPage> {
 
   Future<void> _save() async {
     final shopId = _shopId;
-    if (shopId == null) return;
-
-    if (_shopNameController.text.trim().isEmpty) {
-      setState(() => _errorMessage = '店舗名を入力してください。');
-      return;
-    }
+    if (shopId == null || _isSaving) return;
 
     setState(() {
       _isSaving = true;
@@ -139,6 +138,21 @@ class _WebSettingPageState extends State<WebSettingPage> {
     });
 
     try {
+      final plan = await _service.fetchCurrentUserPlan();
+      final isProUser = plan == 'pro';
+      if (!mounted) return;
+
+      setState(() => _isProUser = isProUser);
+      if (!isProUser) {
+        await _showProPlanDialog();
+        return;
+      }
+
+      if (_shopNameController.text.trim().isEmpty) {
+        setState(() => _errorMessage = '店舗名を入力してください。');
+        return;
+      }
+
       await _service.save(
         WebSettingData(
           shopId: shopId,
@@ -173,6 +187,41 @@ class _WebSettingPageState extends State<WebSettingPage> {
       if (mounted) {
         setState(() => _isSaving = false);
       }
+    }
+  }
+
+  Future<void> _showProPlanDialog() async {
+    final shouldOpenPlanPage = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Proプラン限定'),
+        content: const Text(
+          'Web予約機能はProプラン限定です。\n\n'
+          'Proプランに登録すると、\n\n'
+          '・Web予約ページ公開\n'
+          '・Instagramリンク掲載\n'
+          '・LINEリンク掲載\n'
+          '・店舗情報公開\n\n'
+          'が利用できます。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('キャンセル'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Proプランを見る'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldOpenPlanPage == true && mounted) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SubscriptionPage()),
+      );
     }
   }
 
@@ -284,6 +333,8 @@ class _WebSettingPageState extends State<WebSettingPage> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
               children: [
+                const _ProPlanInfoCard(),
+                const SizedBox(height: 16),
                 const _HeaderCard(),
                 const SizedBox(height: 20),
                 if (_errorMessage != null) ...[
@@ -505,8 +556,68 @@ class _WebSettingPageState extends State<WebSettingPage> {
                           ),
                   ),
                 ),
+                if (!_isProUser) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    '※ Web予約機能はProプラン限定です',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _mutedBrown,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ],
             ),
+    );
+  }
+}
+
+class _ProPlanInfoCard extends StatelessWidget {
+  const _ProPlanInfoCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _lightBeige,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _beige),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.lock_outline, color: _darkBrown, size: 21),
+              SizedBox(width: 8),
+              Text(
+                'Proプラン限定機能',
+                style: TextStyle(
+                  color: _darkBrown,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 14),
+          Text(
+            'Web予約ページ公開機能は\nProプランでご利用いただけます。\n\n'
+            '・Web予約受付\n'
+            '・Instagramリンク掲載\n'
+            '・LINEリンク掲載\n'
+            '・店舗ページ公開',
+            style: TextStyle(
+              color: _mutedBrown,
+              fontSize: 14,
+              height: 1.7,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
