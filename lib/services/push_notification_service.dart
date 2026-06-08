@@ -49,7 +49,11 @@ class PushNotificationService {
     await _localNotifications.initialize(
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: DarwinInitializationSettings(),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
       ),
       onDidReceiveNotificationResponse: (response) {
         final payload = response.payload;
@@ -65,7 +69,15 @@ class PushNotificationService {
         ?.createNotificationChannel(_reservationChannel);
 
     final messaging = FirebaseMessaging.instance;
-    await messaging.requestPermission(alert: true, badge: true, sound: true);
+    await messaging.setAutoInitEnabled(true);
+    final settings = await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    debugPrint(
+      'Notification permission status: ${settings.authorizationStatus}',
+    );
     await messaging.setForegroundNotificationPresentationOptions(
       alert: false,
       badge: false,
@@ -89,10 +101,15 @@ class PushNotificationService {
       await _saveCurrentToken(user.uid);
       _openPendingReservationIfPossible();
     });
-    messaging.onTokenRefresh.listen((token) async {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) await _saveTokenSafely(user.uid, token);
-    });
+    messaging.onTokenRefresh.listen(
+      (token) async {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) await _saveTokenSafely(user.uid, token);
+      },
+      onError: (Object error) {
+        debugPrint('FCM token refresh failed: $error');
+      },
+    );
   }
 
   void attachNavigator(GlobalKey<NavigatorState> navigatorKey) {
@@ -102,13 +119,46 @@ class PushNotificationService {
 
   Future<void> _saveCurrentToken(String uid) async {
     try {
-      final token = await FirebaseMessaging.instance.getToken();
+      final messaging = FirebaseMessaging.instance;
+      if (_usesApns) {
+        final apnsToken = await _waitForApnsToken(messaging);
+        if (apnsToken == null) {
+          debugPrint(
+            'FCM token registration deferred: APNs token was not available.',
+          );
+          return;
+        }
+        debugPrint('APNs token registered (${_tokenSuffix(apnsToken)}).');
+      }
+
+      final token = await messaging.getToken();
       if (token != null && token.isNotEmpty) {
+        debugPrint('FCM token registered (${_tokenSuffix(token)}).');
         await _saveTokenSafely(uid, token);
       }
     } catch (error) {
       debugPrint('FCM token registration failed: $error');
     }
+  }
+
+  bool get _usesApns =>
+      defaultTargetPlatform == TargetPlatform.iOS ||
+      defaultTargetPlatform == TargetPlatform.macOS;
+
+  Future<String?> _waitForApnsToken(FirebaseMessaging messaging) async {
+    const attempts = 20;
+    for (var attempt = 0; attempt < attempts; attempt++) {
+      final token = await messaging.getAPNSToken();
+      if (token != null && token.isNotEmpty) return token;
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+    return null;
+  }
+
+  String _tokenSuffix(String token) {
+    const visibleCharacters = 8;
+    if (token.length <= visibleCharacters) return token;
+    return '...${token.substring(token.length - visibleCharacters)}';
   }
 
   Future<void> _saveTokenSafely(String uid, String token) async {
