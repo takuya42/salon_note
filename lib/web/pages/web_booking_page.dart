@@ -59,10 +59,6 @@ class _WebBookingPageState extends ConsumerState<WebBookingPage> {
           if (shop == null) {
             return const Center(child: Text('店舗が見つからないか、現在公開されていません。'));
           }
-          if (!shop.isWebBookingEnabled) {
-            return const Center(child: Text('現在Web予約を受け付けていません。'));
-          }
-
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(

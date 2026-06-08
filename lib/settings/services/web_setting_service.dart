@@ -3,8 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../web/models/web_booking_settings.dart';
-
 class WebSettingData {
   const WebSettingData({
     required this.shopId,
@@ -18,7 +16,6 @@ class WebSettingData {
     required this.externalLinkUrl,
     required this.paymentMethods,
     required this.isWebPublished,
-    required this.isWebBookingEnabled,
   });
 
   final String shopId;
@@ -32,7 +29,6 @@ class WebSettingData {
   final String externalLinkUrl;
   final List<String> paymentMethods;
   final bool isWebPublished;
-  final bool isWebBookingEnabled;
 
   factory WebSettingData.fromFirestore(
     String shopId,
@@ -62,7 +58,6 @@ class WebSettingData {
               .toList() ??
           const <String>[],
       isWebPublished: (shopData['isWebPublished'] as bool?) ?? false,
-      isWebBookingEnabled: readWebBookingEnabled(shopData),
     );
   }
 }
@@ -258,7 +253,6 @@ class WebSettingService {
       'externalLinkUrl': setting.externalLinkUrl.trim(),
       'paymentMethods': setting.paymentMethods,
       'isWebPublished': setting.isWebPublished,
-      'isWebBookingEnabled': setting.isWebBookingEnabled,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }

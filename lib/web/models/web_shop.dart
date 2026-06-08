@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'web_business_hours.dart';
-import 'web_booking_settings.dart';
 
 class WebShop {
   const WebShop({
@@ -24,7 +23,6 @@ class WebShop {
     required this.ownerEmail,
     required this.planType,
     required this.isWebPublished,
-    required this.isWebBookingEnabled,
     required this.createdAt,
   });
 
@@ -47,7 +45,6 @@ class WebShop {
   final String ownerEmail;
   final String planType;
   final bool isWebPublished;
-  final bool isWebBookingEnabled;
   final DateTime? createdAt;
 
   bool get isProPlan => planType == 'pro';
@@ -88,7 +85,6 @@ class WebShop {
       ownerEmail: (data['ownerEmail'] as String?) ?? '',
       planType: (data['planType'] as String?) ?? 'free',
       isWebPublished: (data['isWebPublished'] as bool?) ?? false,
-      isWebBookingEnabled: readWebBookingEnabled(data),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
@@ -114,7 +110,6 @@ class WebShop {
       'ownerEmail': ownerEmail,
       'planType': planType,
       'isWebPublished': isWebPublished,
-      'isWebBookingEnabled': isWebBookingEnabled,
       'createdAt': createdAt == null
           ? FieldValue.serverTimestamp()
           : Timestamp.fromDate(createdAt!),
