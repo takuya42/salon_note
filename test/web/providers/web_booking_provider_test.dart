@@ -57,6 +57,26 @@ void main() {
       expect(controller.state.errorMessage, closedDayBookingMessage);
     });
 
+    test('shows the requested message when the time is already reserved',
+        () async {
+      bookingService.error = const DuplicateReservationException();
+      controller
+        ..setCustomerName('山田太郎')
+        ..setCustomerPhone('09012345678')
+        ..setCustomerEmail('customer@example.com')
+        ..setMenuId('menu-1')
+        ..setReservationDateTime(DateTime(2026, 6, 11, 10));
+
+      final reservationId = await controller.submit(
+        'shop-1',
+        closedWeekdays: const <int>{},
+      );
+
+      expect(reservationId, isNull);
+      expect(controller.state.errorMessage, duplicateReservationMessage);
+      expect(controller.state.isSubmitting, isFalse);
+    });
+
     test(
       'does not call the save service when submission date is closed',
       () async {
@@ -82,10 +102,12 @@ void main() {
 
 class _FakeWebReservationCreator implements WebReservationCreator {
   int createReservationCallCount = 0;
+  Object? error;
 
   @override
   Future<String> createReservation(WebReservation reservation) async {
     createReservationCallCount += 1;
+    if (error case final error?) throw error;
     return 'reservation-1';
   }
 }

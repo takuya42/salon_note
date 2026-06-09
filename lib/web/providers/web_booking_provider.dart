@@ -181,11 +181,15 @@ class WebBookingController extends StateNotifier<WebBookingState> {
     } catch (error) {
       final isClosedDayError =
           error.toString().contains(closedDayBookingMessage);
+      final isDuplicateError = error is DuplicateReservationException ||
+          error.toString().contains(duplicateReservationMessage);
       state = state.copyWith(
         isSubmitting: false,
-        errorMessage: isClosedDayError
-            ? closedDayBookingMessage
-            : '予約の保存に失敗しました。時間をおいて再度お試しください。',
+        errorMessage: isDuplicateError
+            ? duplicateReservationMessage
+            : isClosedDayError
+                ? closedDayBookingMessage
+                : '予約の保存に失敗しました。時間をおいて再度お試しください。',
       );
       return null;
     }
