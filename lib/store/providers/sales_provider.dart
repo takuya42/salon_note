@@ -1,11 +1,30 @@
+import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 import '../models/sales_model.dart';
 
+final salesStreamProvider = StreamProvider.autoDispose<
+    List<QueryDocumentSnapshot<Map<String, dynamic>>>>((ref) {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) {
+    throw StateError('売上データを読み込むにはログインが必要です。');
+  }
+
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .collection('sales')
+      .orderBy('createdAt', descending: true)
+      .snapshots()
+      .map((snapshot) => snapshot.docs);
+});
+
 final salesProvider =
-StateNotifierProvider<SalesNotifier, SalesState>((ref) {
+    StateNotifierProvider<SalesNotifier, SalesState>((ref) {
   return SalesNotifier();
 });
 
@@ -100,10 +119,12 @@ class SalesNotifier extends StateNotifier<SalesState> {
       final day = start.add(Duration(days: i));
 
       return state.salesList
-          .where((s) =>
-      s.date.year == day.year &&
-          s.date.month == day.month &&
-          s.date.day == day.day)
+          .where(
+            (s) =>
+                s.date.year == day.year &&
+                s.date.month == day.month &&
+                s.date.day == day.day,
+          )
           .fold(0, (sum, e) => sum + e.price);
     });
   }
@@ -116,10 +137,12 @@ class SalesNotifier extends StateNotifier<SalesState> {
       final day = DateTime(baseDate.year, baseDate.month, i + 1);
 
       return state.salesList
-          .where((s) =>
-      s.date.year == day.year &&
-          s.date.month == day.month &&
-          s.date.day == day.day)
+          .where(
+            (s) =>
+                s.date.year == day.year &&
+                s.date.month == day.month &&
+                s.date.day == day.day,
+          )
           .fold(0, (sum, e) => sum + e.price);
     });
   }

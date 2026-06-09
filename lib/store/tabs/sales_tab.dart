@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../widgets/banner_ad_widget.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-String get uid => FirebaseAuth.instance.currentUser!.uid;
+import '../../widgets/banner_ad_widget.dart';
+import '../providers/sales_provider.dart';
 
 class SalesTab extends ConsumerStatefulWidget {
   const SalesTab({super.key});
@@ -16,386 +16,334 @@ class SalesTab extends ConsumerStatefulWidget {
 }
 
 class _SalesTabState extends ConsumerState<SalesTab> {
-
-  String view = "week";
-
+  String view = 'week';
   DateTime selectedWeek = DateTime.now();
   DateTime selectedMonth = DateTime.now();
   DateTime inputDate = DateTime.now();
 
-  /// ===== 週間開始 =====
+  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
+
   DateTime getStartOfWeek(DateTime date) {
     return date.subtract(Duration(days: date.weekday - 1));
   }
 
-  double sum(List<double> list) =>
-      list.fold(0, (sum, e) => sum + e);
+  double sum(List<double> list) => list.fold(0, (total, value) => total + value);
 
-  /// ===== 週間 =====
-  List<double> getWeekSales(List<QueryDocumentSnapshot> docs, DateTime base) {
+  List<double> getWeekSales(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+    DateTime base,
+  ) {
+    final start = getStartOfWeek(base);
+    final result = List<double>.filled(7, 0);
 
-    DateTime start = getStartOfWeek(base);
-    List<double> result = List.filled(7, 0);
+    for (final doc in docs) {
+      final data = doc.data();
+      final price = data['price'];
+      final date = data['date'];
+      if (price is! num || date is! Timestamp) continue;
 
-    for (var doc in docs) {
-      final data = doc.data() as Map<String, dynamic>;
-
-      if (data['price'] == null || data['date'] == null) continue;
-
-      DateTime d = (data['date'] as Timestamp).toDate();
-
-      if (d.isAfter(start.subtract(const Duration(days: 1))) &&
-          d.isBefore(start.add(const Duration(days: 7)))) {
-
-        int index = d.weekday - 1;
-        result[index] += (data['price'] as num).toDouble();
+      final saleDate = date.toDate();
+      if (!saleDate.isBefore(start) &&
+          saleDate.isBefore(start.add(const Duration(days: 7)))) {
+        result[saleDate.weekday - 1] += price.toDouble();
       }
     }
-
     return result;
   }
 
-  /// ===== 月間 =====
-  List<double> getMonthSales(List<QueryDocumentSnapshot> docs, DateTime base) {
+  List<double> getMonthSales(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+    DateTime base,
+  ) {
+    final days = DateTime(base.year, base.month + 1, 0).day;
+    final result = List<double>.filled(days, 0);
 
-    int days = DateTime(base.year, base.month + 1, 0).day;
-    List<double> result = List.filled(days, 0);
+    for (final doc in docs) {
+      final data = doc.data();
+      final price = data['price'];
+      final date = data['date'];
+      if (price is! num || date is! Timestamp) continue;
 
-    for (var doc in docs) {
-      final data = doc.data() as Map<String, dynamic>;
-
-      if (data['price'] == null || data['date'] == null) continue;
-
-      DateTime d = (data['date'] as Timestamp).toDate();
-
-      if (d.year == base.year && d.month == base.month) {
-        result[d.day - 1] += (data['price'] as num).toDouble();
+      final saleDate = date.toDate();
+      if (saleDate.year == base.year && saleDate.month == base.month) {
+        result[saleDate.day - 1] += price.toDouble();
       }
     }
-
     return result;
   }
 
-  /// ===== 手動追加 =====
-  void addSales() async{
-
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .get();
-
-    final plan = userDoc.data()?['plan'] ?? 'free';
-
-    final salesSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('sales')
-        .get();
-
-    final salesCount = salesSnapshot.docs.length;
-
-    if (plan == 'free' && salesCount >= 3) {
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("無料プランは売上3件までです"),
-        ),
-      );
-
+  Future<void> addSales() async {
+    final uid = _uid;
+    if (uid == null) {
+      _showMessage('ログイン状態を確認できませんでした');
       return;
     }
 
-    TextEditingController priceController = TextEditingController();
-    TextEditingController menuController = TextEditingController();
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final plan = userDoc.data()?['plan'] ?? 'free';
+      final salesSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('sales')
+          .get();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context){
-
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          ),
-
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-
-              const Text("売上入力"),
-              const SizedBox(height: 20),
-
-              ListTile(
-                title: const Text("日付"),
-                subtitle: Text(
-                  "${inputDate.year}/${inputDate.month}/${inputDate.day}",
-                ),
-                trailing: const Icon(Icons.calendar_month),
-                onTap: () async {
-                  DateTime? picked = await showDatePicker(
-                    context: context,
-                    initialDate: inputDate,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2035),
-                  );
-
-                  if(picked != null){
-                    setState(() {
-                      inputDate = picked;
-                    });
-                  }
-                },
-              ),
-
-              const SizedBox(height: 10),
-
-              TextField(
-                controller: priceController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: "金額",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              TextField(
-                controller: menuController,
-                decoration: const InputDecoration(
-                  labelText: "メニュー",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFFB08E85),
-                ),
-                onPressed: () async {
-
-                  if(priceController.text.isEmpty) return;
-
-                  double price =
-                      double.tryParse(priceController.text) ?? 0;
-
-                  await FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(uid)
-                      .collection('sales')
-                      .add({
-                    'price': price,
-                    'menu': menuController.text,
-                    'date': inputDate,
-                    'createdAt': FieldValue.serverTimestamp(),
-                  });
-
-                  Navigator.pop(context);
-                },
-                child: const Text("保存"),
-              ),
-
-              const SizedBox(height: 20),
-            ],
-          ),
-        );
-      },
-    );
+      if (plan == 'free' && salesSnapshot.docs.length >= 3) {
+        _showMessage('無料プランは売上3件までです');
+        return;
+      }
+      if (!mounted) return;
+      await _showSalesSheet(uid);
+    } catch (_) {
+      _showMessage('売上情報の確認に失敗しました。もう一度お試しください');
+    }
   }
 
-  /// ===== 削除 =====
+  Future<void> _showSalesSheet(String uid) async {
+    final priceController = TextEditingController();
+    final menuController = TextEditingController();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              '売上入力',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              title: const Text('日付'),
+              subtitle: Text(
+                '${inputDate.year}/${inputDate.month}/${inputDate.day}',
+              ),
+              trailing: const Icon(Icons.calendar_month),
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: sheetContext,
+                  initialDate: inputDate,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2035),
+                );
+                if (picked != null && mounted) setState(() => inputDate = picked);
+              },
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: priceController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: '金額',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: menuController,
+              decoration: const InputDecoration(
+                labelText: 'メニュー',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () async {
+                  final price = double.tryParse(priceController.text);
+                  if (price == null || price <= 0) {
+                    ScaffoldMessenger.of(sheetContext).showSnackBar(
+                      const SnackBar(content: Text('正しい金額を入力してください')),
+                    );
+                    return;
+                  }
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(uid)
+                        .collection('sales')
+                        .add({
+                      'price': price,
+                      'menu': menuController.text.trim(),
+                      'date': inputDate,
+                      'createdAt': FieldValue.serverTimestamp(),
+                    });
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  } catch (_) {
+                    if (sheetContext.mounted) {
+                      ScaffoldMessenger.of(sheetContext).showSnackBar(
+                        const SnackBar(content: Text('保存に失敗しました')),
+                      );
+                    }
+                  }
+                },
+                child: const Text('保存'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    priceController.dispose();
+    menuController.dispose();
+  }
+
   Future<void> deleteSales(String id) async {
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('sales')
-        .doc(id)
-        .delete();
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('sales')
+          .doc(id)
+          .delete();
+    } catch (_) {
+      _showMessage('削除に失敗しました');
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
-
+    final sales = ref.watch(salesStreamProvider);
     return Scaffold(
       backgroundColor: Colors.white,
-
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .collection('sales')
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
-
-        builder: (context, snapshot) {
-
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final docs = snapshot.data!.docs;
-
-          final weekSales = getWeekSales(docs, selectedWeek);
-          final monthSales = getMonthSales(docs, selectedMonth);
-
-          double todayTotal = 0;
-          DateTime now = DateTime.now();
-
-          for (var doc in docs) {
-            final data = doc.data() as Map<String, dynamic>;
-
-            if (data['date'] == null || data['price'] == null) continue;
-
-            DateTime d = (data['date'] as Timestamp).toDate();
-
-            if (d.year == now.year &&
-                d.month == now.month &&
-                d.day == now.day) {
-              todayTotal += (data['price'] as num).toDouble();
-            }
-          }
-
-          return SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-
-                  const Text("今日の売上"),
-                  const SizedBox(height: 10),
-
-                  Text(
-                    "¥${todayTotal.toInt()}",
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFB08E85),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFFBFA29A),
-                    ),
-                    onPressed: addSales,
-                    icon: const Icon(Icons.add),
-                    label: const Text("売上を記入"),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  CupertinoSlidingSegmentedControl<String>(
-                    groupValue: view,
-                    children: const {
-                      "week": Text("週間"),
-                      "month": Text("月間"),
-                    },
-                    onValueChanged: (value){
-                      setState(() {
-                        view = value!;
-                      });
-                    },
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  Text(
-                    view == "week"
-                        ? "週間合計 ¥${sum(weekSales).toInt()}"
-                        : "月間合計 ¥${sum(monthSales).toInt()}",
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  SizedBox(
-                    height: 230,
-                    child: view == "week"
-                        ? weekChart(weekSales)
-                        : monthChart(monthSales),
-                  ),
-                  const SizedBox(height: 20),
-
-                  /// 🔥 広告
-                  StreamBuilder<DocumentSnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(uid)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-
-                      if (!snapshot.hasData) {
-                        return const SizedBox();
-                      }
-
-                      final data =
-                      snapshot.data!.data() as Map<String, dynamic>?;
-
-                      final plan = data?['plan'] ?? 'free';
-
-                      if (plan == 'pro') {
-                        return const SizedBox();
-                      }
-
-                      return const Column(
-                        children: [
-
-                          Text(
-                            "無料プランをご利用中",
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
-                          ),
-
-                          SizedBox(height: 6),
-
-                          Center(
-                            child: BannerAdWidget(),
-                          ),
-
-                          SizedBox(height: 10),
-                        ],
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+      body: sales.when(
+        loading: () => const Center(
+          child: CupertinoActivityIndicator(radius: 14),
+        ),
+        error: (_, __) => _SalesErrorState(
+          onRetry: () => ref.invalidate(salesStreamProvider),
+        ),
+        data: (docs) => docs.isEmpty
+            ? _SalesEmptyState(onAdd: addSales)
+            : _buildSalesContent(docs),
       ),
     );
   }
 
-  Widget weekChart(List<double> data){
+  Widget _buildSalesContent(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final weekSales = getWeekSales(docs, selectedWeek);
+    final monthSales = getMonthSales(docs, selectedMonth);
+    final now = DateTime.now();
+    var todayTotal = 0.0;
+
+    for (final doc in docs) {
+      final data = doc.data();
+      final price = data['price'];
+      final date = data['date'];
+      if (price is! num || date is! Timestamp) continue;
+      final saleDate = date.toDate();
+      if (saleDate.year == now.year &&
+          saleDate.month == now.month &&
+          saleDate.day == now.day) {
+        todayTotal += price.toDouble();
+      }
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        await ref.refresh(salesStreamProvider.future);
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const Text('今日の売上', style: TextStyle(color: Colors.black54)),
+          const SizedBox(height: 8),
+          Text(
+            '¥${todayTotal.toInt()}',
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFB08E85),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFBFA29A),
+              ),
+              onPressed: addSales,
+              icon: const Icon(Icons.add),
+              label: const Text('売上を記入'),
+            ),
+          ),
+          const SizedBox(height: 24),
+          CupertinoSlidingSegmentedControl<String>(
+            groupValue: view,
+            children: const {'week': Text('週間'), 'month': Text('月間')},
+            onValueChanged: (value) {
+              if (value != null) setState(() => view = value);
+            },
+          ),
+          const SizedBox(height: 22),
+          Text(
+            view == 'week'
+                ? '週間合計  ¥${sum(weekSales).toInt()}'
+                : '月間合計  ¥${sum(monthSales).toInt()}',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 230,
+            child: view == 'week'
+                ? _weekChart(weekSales)
+                : _monthChart(monthSales),
+          ),
+          const SizedBox(height: 20),
+          _PlanAdvertisement(uid: _uid),
+        ],
+      ),
+    );
+  }
+
+  Widget _weekChart(List<double> data) {
     return BarChart(
       BarChartData(
         borderData: FlBorderData(show: false),
-        barGroups: List.generate(7, (i){
-          return BarChartGroupData(
-            x: i,
+        barGroups: List.generate(
+          7,
+          (index) => BarChartGroupData(
+            x: index,
             barRods: [
               BarChartRodData(
-                toY: data[i],
-                color: Colors.orange,
-              )
+                toY: data[index],
+                color: const Color(0xFFB08E85),
+                borderRadius: BorderRadius.circular(5),
+              ),
             ],
-          );
-        }),
+          ),
+        ),
       ),
     );
   }
 
-  Widget monthChart(List<double> data){
+  Widget _monthChart(List<double> data) {
     return LineChart(
       LineChartData(
         borderData: FlBorderData(show: false),
@@ -403,13 +351,136 @@ class _SalesTabState extends ConsumerState<SalesTab> {
           LineChartBarData(
             spots: List.generate(
               data.length,
-                  (i) => FlSpot(i.toDouble(), data[i]),
+              (index) => FlSpot(index.toDouble(), data[index]),
             ),
             isCurved: true,
-            color: Colors.orange,
-          )
+            color: const Color(0xFFB08E85),
+            barWidth: 3,
+            dotData: const FlDotData(show: false),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _SalesEmptyState extends StatelessWidget {
+  const _SalesEmptyState({required this.onAdd});
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 76,
+              height: 76,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF5EFEC),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                CupertinoIcons.chart_bar_alt_fill,
+                color: Color(0xFFB08E85),
+                size: 31,
+              ),
+            ),
+            const SizedBox(height: 22),
+            const Text(
+              '売上データなし',
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 7),
+            const Text(
+              'まだ売上データがありません',
+              style: TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add),
+              label: const Text('最初の売上を記入'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SalesErrorState extends StatelessWidget {
+  const _SalesErrorState({required this.onRetry});
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              CupertinoIcons.exclamationmark_circle,
+              color: Color(0xFFB08E85),
+              size: 48,
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              '読み込みに失敗しました',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '通信環境を確認して、もう一度お試しください',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 22),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('再読み込み'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlanAdvertisement extends StatelessWidget {
+  const _PlanAdvertisement({required this.uid});
+  final String? uid;
+
+  @override
+  Widget build(BuildContext context) {
+    if (uid == null) return const SizedBox.shrink();
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError || !snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+        if (snapshot.data?.data()?['plan'] == 'pro') {
+          return const SizedBox.shrink();
+        }
+        return const Column(
+          children: [
+            Text(
+              '無料プランをご利用中',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            SizedBox(height: 6),
+            Center(child: BannerAdWidget()),
+            SizedBox(height: 10),
+          ],
+        );
+      },
     );
   }
 }
