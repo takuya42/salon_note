@@ -85,24 +85,23 @@ class _SalesTabState extends ConsumerState<SalesTab> {
           .doc(uid)
           .get();
       final plan = userDoc.data()?['plan'] ?? 'free';
-      final salesSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('sales')
-          .get();
+      final salesCollection = await currentUserSalesCollection();
+      final salesSnapshot = await salesCollection.get();
 
       if (plan == 'free' && salesSnapshot.docs.length >= 3) {
         _showMessage('無料プランは売上3件までです');
         return;
       }
       if (!mounted) return;
-      await _showSalesSheet(uid);
+      await _showSalesSheet(salesCollection);
     } catch (_) {
       _showMessage('売上情報の確認に失敗しました。もう一度お試しください');
     }
   }
 
-  Future<void> _showSalesSheet(String uid) async {
+  Future<void> _showSalesSheet(
+    CollectionReference<Map<String, dynamic>> salesCollection,
+  ) async {
     final priceController = TextEditingController();
     final menuController = TextEditingController();
 
@@ -174,11 +173,7 @@ class _SalesTabState extends ConsumerState<SalesTab> {
                     return;
                   }
                   try {
-                    await FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(uid)
-                        .collection('sales')
-                        .add({
+                    await salesCollection.add({
                       'price': price,
                       'menu': menuController.text.trim(),
                       'date': inputDate,
@@ -205,15 +200,10 @@ class _SalesTabState extends ConsumerState<SalesTab> {
   }
 
   Future<void> deleteSales(String id) async {
-    final uid = _uid;
-    if (uid == null) return;
+    if (_uid == null) return;
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('sales')
-          .doc(id)
-          .delete();
+      final salesCollection = await currentUserSalesCollection();
+      await salesCollection.doc(id).delete();
     } catch (_) {
       _showMessage('削除に失敗しました');
     }
