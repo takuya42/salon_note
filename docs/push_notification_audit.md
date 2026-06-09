@@ -107,3 +107,80 @@ Firebase Consoleでは、プロジェクト `salon-note` のiOSアプリ `com.ko
 4. 保存トークンが別Firebaseプロジェクト/別Bundle ID由来である。
 
 シミュレータで届かない事実だけではAPNs設定不良を確定できません。Xcode/Simulatorのバージョン、ホスト環境、sandbox APNs登録、シミュレータで発行された最新トークンかどうかの影響を受けるため、最終確認は署名済みiOS実機で行ってください。
+
+## 2026-06-09: `third-party-auth-error` / OAuth 401 再調査
+
+### 結論
+
+今回のログが1件ごとの `FCM delivery response` に
+`messaging/third-party-auth-error` として記録され、メッセージが
+`Request is missing required authentication credential`、ステータスが
+`UNAUTHENTICATED` である場合、最有力原因は **Functionsのサービスアカウントではなく、
+FCMがiOSトークンへの配送時に使用するAPNs認証情報** です。
+
+FCM HTTP v1の `THIRD_PARTY_AUTH_ERROR` はHTTP 401で、APNs証明書またはAPNs認証キーが
+無効・欠落している場合に返されます。また、現在インストールされているAdmin SDKは
+FCMの `UNAUTHENTICATED` / `APNS_AUTH_ERROR` / `InvalidApnsCredential` をすべて
+`messaging/third-party-auth-error` に変換します。このため、表示されるOAuth 2.0の文言だけを
+見てCloud Functions実行サービスアカウントのADC不良と判断しないでください。
+
+### コードと依存関係の確認結果
+
+1. `initializeApp()` はモジュールロード時に1回実行されており、Cloud Functions上で推奨される
+   Application Default Credentialsを使用する正しい形です。
+2. 初期化対象を曖昧にしないため、戻り値のFirebase Appを`getFirestore(app)`と
+   `getMessaging(app)`へ明示的に渡し、同じデフォルトAppのクライアントを再利用します。
+   旧コードの引数なし`getMessaging()`も正しいため、この変更は認証エラー修正ではなく監査性向上です。
+3. `package-lock.json`で実際に固定されている`firebase-admin`は`13.10.0`です。
+   2026-05-14公開の最新Admin Node SDKであり、古いAdmin SDKが原因ではありません。
+4. `firebase-functions`は宣言`^6.4.0`、ロック済み`6.6.0`です。2026-04-08時点の最新は
+   `7.2.5`のため最新ではありませんが、FCMのAPNs認証はAdmin SDK/FCMバックエンドの責務であり、
+   このエラーの直接原因とは考えにくいです。メジャーアップデートは別変更として互換性テスト後に行います。
+5. Gen2のデフォルト実行IDは通常
+   `PROJECT_NUMBER-compute@developer.gserviceaccount.com`です。コードにはJSON鍵、
+   `GOOGLE_APPLICATION_CREDENTIALS`、独自credential指定はなく、Google環境のADCを使用します。
+   Firestore読取が成功し、FCMからトークン単位の応答まで返っているなら、Admin SDK初期化とADCは
+   少なくともその地点まで機能しています。IAM不足なら通常は`PERMISSION_DENIED`系を優先して調べます。
+6. Node.js 20固有のFCM/APNs認証障害は公式情報・SDK issueから確認できませんでした。
+   ただしNode.js 20は2026-04-30に非推奨期間へ入り、2026-10-30に廃止予定です。
+   今回の障害原因とは別にNode.js 22への移行が必要です。
+
+### Firebase Console / Apple Developerで優先確認する項目
+
+1. Firebase Consoleの対象が`salon-note`プロジェクトであること。
+2. Cloud Messaging設定のAppleアプリがApp ID
+   `1:30841251960:ios:ed2e444561242522c5e58d`、Bundle ID
+   `com.kono.salonnote`であること。
+3. アップロードした`.p8`のKey IDがApple Developerのキーと完全一致すること。
+4. Team IDがXcodeのDevelopment Team `CDUJCW6G5F`と完全一致すること。
+5. Apple Developer側でそのキーが失効・削除されておらず、APNs権限を持つこと。
+6. 別Firebaseプロジェクト、別Apple Team、macOSアプリの欄へ誤ってアップロードしていないこと。
+7. キー再アップロード後に、署名済みiOS実機でアプリを削除・再インストールし、新しいAPNs/FCMトークンを
+   Firestoreへ保存してから再テストすること。
+8. Firebase Consoleの「テスト メッセージ」から同じ最新FCMトークンへ送ること。ここでも同じ
+   `THIRD_PARTY_AUTH_ERROR`なら、Functionsコードとサービスアカウントを経由しないため、
+   APNs/Firebase Console設定の問題と確定できます。
+
+### リモート環境で追加確認するコマンド
+
+ローカル環境にはFirebase CLI認証がなく、npmレジストリへのアクセスも403で遮断されたため、
+デプロイ済みFunctionの実行サービスアカウントとIAMはこの監査では取得できませんでした。
+認証済み端末で次を確認します。
+
+```bash
+npx -y firebase-tools@latest functions:list --project salon-note
+
+gcloud functions describe notifyOwnerOfWebReservation \
+  --gen2 --region asia-northeast2 --project salon-note \
+  --format='yaml(serviceConfig.serviceAccountEmail,serviceConfig.environmentVariables)'
+
+gcloud projects get-iam-policy salon-note \
+  --flatten='bindings[].members' \
+  --filter='bindings.members:PROJECT_NUMBER-compute@developer.gserviceaccount.com' \
+  --format='table(bindings.role)'
+```
+
+実行サービスアカウントを独自指定している場合は、FCM送信権限
+`cloudmessaging.messages.create`を含むロール（例: `roles/firebasecloudmessaging.admin`、または
+同権限だけを含むカスタムロール）を確認します。ただし、IAM修正より先にFirebase Consoleからの同一トークン送信を
+試し、APNs認証とFunctions ADCを分離して診断します。
