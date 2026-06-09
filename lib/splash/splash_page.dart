@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../auth/pages/login_page.dart';
+import '../auth/pages/auth_gate.dart';
 import '../onboarding/pages/onboarding_page.dart';
 import '../onboarding/providers/onboarding_provider.dart';
 import '../services/force_update_service.dart';
@@ -72,7 +72,7 @@ class _SplashPageState extends ConsumerState<SplashPage>
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 500),
         pageBuilder: (_, animation, __) => completed
-            ? const LoginPage()
+            ? const AuthGate()
             : const OnboardingPage(),
         transitionsBuilder: (_, animation, __, child) => FadeTransition(
           opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),

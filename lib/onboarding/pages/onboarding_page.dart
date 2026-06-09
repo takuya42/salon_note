@@ -5,9 +5,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../auth/pages/login_page.dart';
+import '../../auth/pages/auth_gate.dart';
 import '../../auth/services/auth_service.dart';
-import '../../role_select/role_select_page.dart';
 import '../providers/onboarding_provider.dart';
 
 const _ink = Color(0xFF292421);
@@ -39,7 +38,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     await ref.read(onboardingCompletedProvider.notifier).complete();
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      CupertinoPageRoute<void>(builder: (_) => const LoginPage()),
+      CupertinoPageRoute<void>(builder: (_) => const AuthGate()),
     );
   }
 
@@ -55,7 +54,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
       await ref.read(onboardingCompletedProvider.notifier).complete();
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        CupertinoPageRoute<void>(builder: (_) => const RoleSelectPage()),
+        CupertinoPageRoute<void>(builder: (_) => const AuthGate()),
         (_) => false,
       );
     } catch (error) {
@@ -143,8 +142,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                     eyebrow: '04  WEB BOOKING',
                     title: 'Web予約',
                     subtitle: '24時間いつでも予約受付',
-                    hint: '通知をタップして確認',
-                    demo: const _NotificationDemo(),
+                    hint: '空いている時間をタップ',
+                    demo: const _WebBookingDemo(),
                     onNext: _next,
                   ),
                   _StartPage(
@@ -566,85 +565,118 @@ class _SalesDemoState extends State<_SalesDemo> {
   }
 }
 
-class _NotificationDemo extends StatefulWidget {
-  const _NotificationDemo();
+class _WebBookingDemo extends StatefulWidget {
+  const _WebBookingDemo();
 
   @override
-  State<_NotificationDemo> createState() => _NotificationDemoState();
+  State<_WebBookingDemo> createState() => _WebBookingDemoState();
 }
 
-class _NotificationDemoState extends State<_NotificationDemo> {
-  bool _visible = false;
-  bool _confirmed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    Timer(const Duration(milliseconds: 350), () {
-      if (mounted) setState(() => _visible = true);
-    });
-  }
+class _WebBookingDemoState extends State<_WebBookingDemo> {
+  static const _times = ['10:00', '11:30', '14:00', '16:30'];
+  String? _selectedTime;
 
   @override
   Widget build(BuildContext context) {
     return _DemoCard(
-      child: Stack(
-        alignment: Alignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          const Row(
             children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: const BoxDecoration(color: Color(0xFFF0E4E0), shape: BoxShape.circle),
-                child: const Icon(CupertinoIcons.globe, color: _accent, size: 32),
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: Color(0xFFF0E4E0),
+                child: Icon(CupertinoIcons.globe, color: _accent, size: 20),
               ),
-              const SizedBox(height: 15),
-              const Text('予約ページはいつでも受付中', style: TextStyle(color: _ink, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 5),
-              const Text('営業時間外も機会を逃しません', style: TextStyle(color: _muted, fontSize: 12)),
-            ],
-          ),
-          AnimatedSlide(
-            offset: _visible ? const Offset(0, -0.72) : const Offset(0, -1.5),
-            duration: const Duration(milliseconds: 650),
-            curve: Curves.easeOutBack,
-            child: AnimatedOpacity(
-              opacity: _visible ? 1 : 0,
-              duration: const Duration(milliseconds: 400),
-              child: InkWell(
-                onTap: () => setState(() => _confirmed = true),
-                borderRadius: BorderRadius.circular(18),
-                child: Container(
-                  padding: const EdgeInsets.all(13),
-                  decoration: BoxDecoration(
-                    color: const Color(0xF7FFFFFF),
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: const [BoxShadow(color: Color(0x18000000), blurRadius: 20, offset: Offset(0, 8))],
-                  ),
-                  child: Row(
-                    children: [
-                      const CircleAvatar(
-                        radius: 18,
-                        backgroundColor: _accent,
-                        child: Icon(CupertinoIcons.bell_fill, color: Colors.white, size: 17),
+              SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Web予約ページ',
+                      style: TextStyle(
+                        color: _ink,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(_confirmed ? '予約を確認しました' : '新しいWeb予約', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                            Text(_confirmed ? 'カレンダーに追加済みです' : '6月12日 14:00  カット', style: const TextStyle(color: _muted, fontSize: 11)),
-                          ],
-                        ),
-                      ),
-                      Icon(_confirmed ? CupertinoIcons.check_mark_circled_solid : CupertinoIcons.chevron_right, color: _confirmed ? const Color(0xFF668673) : _muted, size: 18),
-                    ],
-                  ),
+                    ),
+                    Text(
+                      'カット  ¥5,500 / 60分',
+                      style: TextStyle(color: _muted, fontSize: 12),
+                    ),
+                  ],
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            '6月12日（金）の空き時間',
+            style: TextStyle(color: _ink, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 9,
+            runSpacing: 9,
+            children: _times.map((time) {
+              final selected = time == _selectedTime;
+              return ChoiceChip(
+                label: Text(time),
+                selected: selected,
+                showCheckmark: false,
+                selectedColor: _accent,
+                backgroundColor: _surface,
+                side: BorderSide(
+                  color: selected ? _accent : const Color(0xFFE8E0DC),
+                ),
+                labelStyle: TextStyle(
+                  color: selected ? Colors.white : _ink,
+                  fontWeight: FontWeight.w600,
+                ),
+                onSelected: (_) => setState(() => _selectedTime = time),
+              );
+            }).toList(),
+          ),
+          const Spacer(),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: _selectedTime == null
+                  ? const Color(0xFFF4F0EE)
+                  : const Color(0xFFE8F0EB),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _selectedTime == null
+                      ? CupertinoIcons.hand_draw
+                      : CupertinoIcons.check_mark_circled_solid,
+                  color: _selectedTime == null
+                      ? _muted
+                      : const Color(0xFF668673),
+                  size: 18,
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    _selectedTime == null
+                        ? 'ご希望の時間を選択してください'
+                        : '6月12日 $_selectedTime を選択中',
+                    style: TextStyle(
+                      color: _selectedTime == null
+                          ? _muted
+                          : const Color(0xFF4F705D),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
