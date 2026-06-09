@@ -100,8 +100,8 @@ class _SalesTabState extends ConsumerState<SalesTab> {
   }
 
   Future<void> _showSalesSheet(
-    CollectionReference<Map<String, dynamic>> salesCollection,
-  ) {
+      CollectionReference<Map<String, dynamic>> salesCollection,
+      ) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -126,6 +126,7 @@ class _SalesTabState extends ConsumerState<SalesTab> {
       ),
     );
   }
+
 
   Future<void> deleteSales(String id) async {
     if (_uid == null) return;
