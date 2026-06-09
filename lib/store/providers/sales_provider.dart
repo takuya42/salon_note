@@ -7,19 +7,37 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/sales_model.dart';
 
-final salesStreamProvider = StreamProvider.autoDispose<
-    List<QueryDocumentSnapshot<Map<String, dynamic>>>>((ref) {
+CollectionReference<Map<String, dynamic>> salesCollectionForShop(
+  FirebaseFirestore firestore,
+  String shopId,
+) {
+  return firestore.collection('shops').doc(shopId).collection('sales');
+}
+
+Future<CollectionReference<Map<String, dynamic>>>
+    currentUserSalesCollection() async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) {
     throw StateError('売上データを読み込むにはログインが必要です。');
   }
 
-  return FirebaseFirestore.instance
-      .collection('users')
-      .doc(user.uid)
-      .collection('sales')
-      .orderBy('createdAt', descending: true)
-      .snapshots()
+  final firestore = FirebaseFirestore.instance;
+  final userDoc = await firestore.collection('users').doc(user.uid).get();
+  final shopId = userDoc.data()?['shopId'];
+  if (shopId is! String || shopId.trim().isEmpty) {
+    throw StateError('ログインユーザーに店舗が紐付いていません。');
+  }
+
+  return salesCollectionForShop(firestore, shopId.trim());
+}
+
+final salesStreamProvider = StreamProvider.autoDispose<
+    List<QueryDocumentSnapshot<Map<String, dynamic>>>>((ref) {
+  return currentUserSalesCollection()
+      .asStream()
+      .asyncExpand(
+        (sales) => sales.orderBy('createdAt', descending: true).snapshots(),
+      )
       .map((snapshot) => snapshot.docs);
 });
 
