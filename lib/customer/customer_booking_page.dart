@@ -349,20 +349,22 @@ class _CustomerBookingPageState extends State<CustomerBookingPage> {
                         FieldValue.serverTimestamp(),
                       });
 
-                      await FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(
-                        FirebaseAuth
-                            .instance.currentUser!.uid,
-                      )
-                          .collection('customers')
-                          .add({
-                        'name': name,
-                        'email': email,
-                        'phone': phone,
-                        'createdAt':
-                        FieldValue.serverTimestamp(),
-                      });
+                      final currentUser = FirebaseAuth.instance.currentUser;
+                      if (currentUser != null) {
+                        final shopDoc = await FirebaseFirestore.instance
+                            .collection('shops')
+                            .doc(widget.shopId)
+                            .get();
+                        if (shopDoc.data()?['ownerId'] == currentUser.uid) {
+                          await shopDoc.reference.collection('customers').add({
+                            'name': name,
+                            'email': email,
+                            'phone': phone,
+                            'memo': '',
+                            'createdAt': FieldValue.serverTimestamp(),
+                          });
+                        }
+                      }
 
                       Navigator.pop(context);
                     },

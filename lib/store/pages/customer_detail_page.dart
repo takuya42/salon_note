@@ -277,20 +277,14 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                           ),
 
                           onPressed: () async {
-                            final uid = FirebaseAuth.instance.currentUser!.uid;
-
-                            await FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(uid)
-                                .collection('customers')
-                                .doc(currentCustomer.id)
-                                .update({
-                                  'name': nameController.text,
-
-                                  'email': emailController.text,
-
-                                  'phone': phoneController.text,
-                                });
+                            await ref
+                                .read(customerProvider.notifier)
+                                .updateCustomer(
+                                  currentCustomer.id,
+                                  name: nameController.text,
+                                  email: emailController.text,
+                                  phone: phoneController.text,
+                                );
 
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text("基本情報を保存しました")),

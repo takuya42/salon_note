@@ -38,13 +38,8 @@ class _CustomerTabState extends ConsumerState<CustomerTab> {
 
     final plan = userDoc.data()?['plan'] ?? 'free';
 
-    final customerSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('customers')
-        .get();
-
-    final customerCount = customerSnapshot.docs.length;
+    final customerCount =
+        await ref.read(customerProvider.notifier).customerCount();
 
     if (plan == 'free' && customerCount >= 3) {
       ScaffoldMessenger.of(context).showSnackBar(
