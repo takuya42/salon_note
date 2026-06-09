@@ -341,51 +341,28 @@ class _CustomerTabState extends ConsumerState<CustomerTab> {
                         ),
                       ),
 
-                      subtitle: uid == null
-                          ? Text(
-                        "来店回数: 0回",
-                        style: TextStyle(
-                          color: darkBrown
-                              .withOpacity(0.6),
-                        ),
-                      )
-                          : StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore
-                            .instance
-                            .collection('users')
-                            .doc(uid)
-                            .collection('sales')
-                            .where(
-                          'customerId',
-                          isEqualTo: customer.id,
-                        )
-                            .snapshots(),
-
-                        builder:
-                            (context, snapshot) {
-                          if (!snapshot.hasData) {
-                            return Text(
-                              "来店回数: 0回",
+                      subtitle: ref
+                          .watch(customerDetailProvider(customer.id))
+                          .when(
+                            loading: () => Text(
+                              "来店回数: 読み込み中",
                               style: TextStyle(
-                                color: darkBrown
-                                    .withOpacity(
-                                    0.6),
+                                color: darkBrown.withOpacity(0.6),
                               ),
-                            );
-                          }
-
-                          final count = snapshot
-                              .data!.docs.length;
-
-                          return Text(
-                            "来店回数: ${count}回",
-                            style: TextStyle(
-                              color: darkBrown
-                                  .withOpacity(0.6),
                             ),
-                          );
-                        },
-                      ),
+                            error: (_, __) => Text(
+                              "来店回数: 取得できません",
+                              style: TextStyle(
+                                color: darkBrown.withOpacity(0.6),
+                              ),
+                            ),
+                            data: (detail) => Text(
+                              "来店回数: ${detail?.sales.length ?? 0}回",
+                              style: TextStyle(
+                                color: darkBrown.withOpacity(0.6),
+                              ),
+                            ),
+                          ),
 
                       trailing: IconButton(
                         icon: const Icon(

@@ -1,15 +1,20 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-/// Resolves the signed-in owner's shop before accessing customer documents.
-///
-/// Customer data is always stored below `shops/{shopId}/customers`; the
-/// authenticated user's document is used only to resolve the owning shop ID.
+import '../models/customer_model.dart';
+
+class CustomerDetailData {
+  const CustomerDetailData({required this.customer, required this.sales});
+
+  final Customer customer;
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> sales;
+}
+
 class CustomerRepository {
-  CustomerRepository({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+  CustomerRepository({FirebaseFirestore? firestore, FirebaseAuth? auth})
+      : _firestore = firestore ?? FirebaseFirestore.instance,
         _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore;
@@ -27,7 +32,7 @@ class CustomerRepository {
       throw StateError('店舗情報が見つかりません。');
     }
 
-    return shopId;
+    return shopId.trim();
   }
 
   Future<CollectionReference<Map<String, dynamic>>> customerCollection() async {
@@ -38,9 +43,91 @@ class CustomerRepository {
         .collection('customers');
   }
 
+  Future<CollectionReference<Map<String, dynamic>>> salesCollection() async {
+    final shopId = await currentShopId();
+    return _firestore.collection('shops').doc(shopId).collection('sales');
+  }
+
   Stream<QuerySnapshot<Map<String, dynamic>>> watchCustomers() async* {
     final customers = await customerCollection();
     yield* customers.orderBy('createdAt', descending: true).snapshots();
+  }
+
+  Stream<CustomerDetailData?> watchCustomerDetail(String customerId) {
+    late final StreamController<CustomerDetailData?> controller;
+    StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? customerSub;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? salesSub;
+    DocumentSnapshot<Map<String, dynamic>>? latestCustomer;
+    QuerySnapshot<Map<String, dynamic>>? latestSales;
+
+    void emitWhenReady() {
+      final customerSnapshot = latestCustomer;
+      final salesSnapshot = latestSales;
+      if (customerSnapshot == null || salesSnapshot == null) return;
+      if (!customerSnapshot.exists || customerSnapshot.data() == null) {
+        controller.add(null);
+        return;
+      }
+
+      final data = customerSnapshot.data()!;
+      controller.add(
+        CustomerDetailData(
+          customer: Customer(
+            id: customerSnapshot.id,
+            name: data['name'] as String? ?? '',
+            email: data['email'] as String? ?? '',
+            phone: data['phone'] as String? ?? '',
+            memo: data['memo'] as String? ?? '',
+            imageUrls: (data['imageUrls'] as List?)
+                ?.map((value) => value.toString())
+                .toList(),
+          ),
+          sales: [...salesSnapshot.docs]
+            ..sort((a, b) {
+              final aDate = a.data()['date'];
+              final bDate = b.data()['date'];
+              if (aDate is! Timestamp || bDate is! Timestamp) return 0;
+              return bDate.compareTo(aDate);
+            }),
+        ),
+      );
+    }
+
+    controller = StreamController<CustomerDetailData?>(
+      onListen: () async {
+        try {
+          final customers = await customerCollection();
+          final sales = await salesCollection();
+          if (controller.isClosed) return;
+
+          customerSub = customers.doc(customerId).snapshots().listen(
+            (snapshot) {
+              latestCustomer = snapshot;
+              emitWhenReady();
+            },
+            onError: controller.addError,
+          );
+          salesSub = sales
+              .where('customerId', isEqualTo: customerId)
+              .snapshots()
+              .listen(
+            (snapshot) {
+              latestSales = snapshot;
+              emitWhenReady();
+            },
+            onError: controller.addError,
+          );
+        } catch (error, stackTrace) {
+          controller.addError(error, stackTrace);
+        }
+      },
+      onCancel: () async {
+        await customerSub?.cancel();
+        await salesSub?.cancel();
+      },
+    );
+
+    return controller.stream;
   }
 
   Future<int> customerCount() async {

@@ -8,6 +8,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/customer_model.dart';
 import '../repositories/customer_repository.dart';
 
+final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
+  return CustomerRepository();
+});
+
+final customerDetailProvider = StreamProvider.autoDispose
+    .family<CustomerDetailData?, String>((ref, customerId) {
+  return ref.watch(customerRepositoryProvider).watchCustomerDetail(customerId);
+});
+
 final customerProvider =
     StateNotifierProvider<CustomerNotifier, List<Customer>>((ref) {
   return CustomerNotifier();

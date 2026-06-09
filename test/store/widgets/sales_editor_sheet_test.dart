@@ -49,7 +49,7 @@ void main() {
       '12000',
     );
     await tester.enterText(
-      find.widgetWithText(TextField, 'メニュー'),
+      find.widgetWithText(TextField, 'メニュー名'),
       'カット',
     );
 
@@ -68,12 +68,64 @@ void main() {
     expect(find.byType(SalesEditorSheet), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('sales editor shows initial values when editing', (tester) async {
+    await tester.pumpWidget(
+      _SalesEditorHarness(
+        initialPrice: 9800,
+        initialMenu: 'カラー',
+        initialDate: DateTime(2026, 5, 20),
+      ),
+    );
+
+    await tester.tap(find.text('売上入力を開く'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('9800'), findsOneWidget);
+    expect(find.text('カラー'), findsOneWidget);
+    expect(find.text('2026年5月20日'), findsOneWidget);
+  });
+
+  testWidgets('sales editor confirms before deleting', (tester) async {
+    var deleteCount = 0;
+    await tester.pumpWidget(
+      _SalesEditorHarness(
+        onDelete: () async {
+          deleteCount += 1;
+        },
+      ),
+    );
+
+    await tester.tap(find.text('売上入力を開く'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('この売上を削除'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('売上を削除しますか？'), findsOneWidget);
+    expect(deleteCount, 0);
+
+    await tester.tap(find.widgetWithText(FilledButton, '削除'));
+    await tester.pumpAndSettle();
+
+    expect(deleteCount, 1);
+    expect(find.byType(SalesEditorSheet), findsNothing);
+  });
 }
 
 class _SalesEditorHarness extends StatelessWidget {
-  const _SalesEditorHarness({this.onSave});
+  const _SalesEditorHarness({
+    this.onSave,
+    this.onDelete,
+    this.initialPrice,
+    this.initialMenu = '',
+    this.initialDate,
+  });
 
   final SaveSale? onSave;
+  final Future<void> Function()? onDelete;
+  final double? initialPrice;
+  final String initialMenu;
+  final DateTime? initialDate;
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +139,10 @@ class _SalesEditorHarness extends StatelessWidget {
                   context: context,
                   isScrollControlled: true,
                   builder: (_) => SalesEditorSheet(
-                    initialDate: DateTime(2026, 6, 9),
+                    initialDate: initialDate ?? DateTime(2026, 6, 9),
+                    initialPrice: initialPrice,
+                    initialMenu: initialMenu,
+                    onDelete: onDelete,
                     onSave: onSave ??
                         ({required price, required menu, required date}) async {},
                   ),
