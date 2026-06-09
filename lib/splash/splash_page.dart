@@ -114,11 +114,22 @@ class _SplashPageState extends ConsumerState<SplashPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF8F6),
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFFFCF9),
+              Color(0xFFF7F0EB),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 ScaleTransition(
@@ -176,7 +187,8 @@ class _SplashPageState extends ConsumerState<SplashPage>
                     ],
                   ),
                 ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

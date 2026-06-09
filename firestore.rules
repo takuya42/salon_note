@@ -162,6 +162,10 @@ service cloud.firestore {
         allow read: if isSalonAdmin(shopId);
       }
 
+      match /customers/{customerId} {
+        allow read, write: if isSalonAdmin(shopId);
+      }
+
       match /reservations/{reservationId} {
         allow read: if isSalonAdmin(shopId);
         // Public web reservations are created only by the callable Cloud

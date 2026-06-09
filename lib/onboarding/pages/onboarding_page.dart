@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/pages/auth_gate.dart';
-import '../../auth/services/auth_service.dart';
 import '../providers/onboarding_provider.dart';
 
 const _ink = Color(0xFF292421);
@@ -23,9 +22,7 @@ class OnboardingPage extends ConsumerStatefulWidget {
 
 class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   final PageController _pageController = PageController();
-  final AuthService _authService = AuthService();
   int _page = 0;
-  bool _isSigningIn = false;
 
   Future<void> _next() async {
     await _pageController.nextPage(
@@ -34,36 +31,12 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     );
   }
 
-  Future<void> _openLogin() async {
+  Future<void> _openAuthGate() async {
     await ref.read(onboardingCompletedProvider.notifier).complete();
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       CupertinoPageRoute<void>(builder: (_) => const AuthGate()),
     );
-  }
-
-  Future<void> _signIn(Future<Object?> Function() action) async {
-    if (_isSigningIn) return;
-    setState(() => _isSigningIn = true);
-    try {
-      final result = await action();
-      if (result == null) {
-        if (mounted) setState(() => _isSigningIn = false);
-        return;
-      }
-      await ref.read(onboardingCompletedProvider.notifier).complete();
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        CupertinoPageRoute<void>(builder: (_) => const AuthGate()),
-        (_) => false,
-      );
-    } catch (error) {
-      if (!mounted) return;
-      setState(() => _isSigningIn = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
-    }
   }
 
   @override
@@ -118,7 +91,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                     eyebrow: '01  RESERVATIONS',
                     title: '予約管理',
                     subtitle: '予約をかんたんに管理',
-                    hint: 'カレンダーを左右にスワイプ',
+                    hint: '予約状況をひと目で確認',
                     demo: const _CalendarDemo(),
                     onNext: _next,
                   ),
@@ -146,12 +119,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                     demo: const _WebBookingDemo(),
                     onNext: _next,
                   ),
-                  _StartPage(
-                    isLoading: _isSigningIn,
-                    onApple: () => _signIn(_authService.signInWithApple),
-                    onGoogle: () => _signIn(_authService.signInWithGoogle),
-                    onEmail: _openLogin,
-                  ),
+                  _StartPage(onStart: _openAuthGate),
                 ],
               ),
             ),
@@ -306,82 +274,231 @@ class _DemoCard extends StatelessWidget {
   }
 }
 
-class _CalendarDemo extends StatefulWidget {
+class _CalendarDemo extends StatelessWidget {
   const _CalendarDemo();
 
-  @override
-  State<_CalendarDemo> createState() => _CalendarDemoState();
-}
-
-class _CalendarDemoState extends State<_CalendarDemo> {
-  final PageController _controller = PageController(viewportFraction: 0.91);
-  int _month = 0;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  static const _orange = Color(0xFFE3A16F);
+  static const _line = Color(0xFFEDE5E0);
 
   @override
   Widget build(BuildContext context) {
-    const months = ['6月', '7月', '8月'];
     return _DemoCard(
       child: Column(
         children: [
-          Row(
+          const Row(
             children: [
               Text(
-                '2026年 ${months[_month]}',
-                style: const TextStyle(
+                '6月 2026',
+                style: TextStyle(
                   color: _ink,
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
                 ),
               ),
-              const Spacer(),
-              const Icon(CupertinoIcons.calendar, color: _accent, size: 21),
+              Spacer(),
+              Icon(CupertinoIcons.calendar, color: _accent, size: 20),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
+          const Row(
+            children: [
+              SizedBox(width: 38),
+              _DemoDay(label: '月', date: '8'),
+              _DemoDay(label: '火', date: '9'),
+              _DemoDay(label: '水', date: '10', selected: true),
+              _DemoDay(label: '木', date: '11'),
+              _DemoDay(label: '金', date: '12'),
+              _DemoDay(label: '土', date: '13', weekend: true),
+            ],
+          ),
+          const SizedBox(height: 8),
           Expanded(
-            child: PageView.builder(
-              controller: _controller,
-              onPageChanged: (value) => setState(() => _month = value),
-              itemCount: months.length,
-              itemBuilder: (_, page) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 7,
-                    mainAxisSpacing: 5,
-                    crossAxisSpacing: 5,
-                  ),
-                  itemCount: 28,
-                  itemBuilder: (_, index) {
-                    final selected = index == 10 + page * 2;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      decoration: BoxDecoration(
-                        color: selected ? _accent : const Color(0xFFFAF8F6),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '${index + 1}',
-                        style: TextStyle(
-                          color: selected ? Colors.white : _muted,
-                          fontSize: 11,
-                          fontWeight: selected ? FontWeight.w700 : null,
+            child: Stack(
+              children: [
+                Column(
+                  children: const [
+                    _TimeLine(time: '12:30'),
+                    _TimeLine(time: '13:00'),
+                    _TimeLine(time: '13:30'),
+                    _TimeLine(time: '14:00'),
+                  ],
+                ),
+                Positioned(
+                  top: 2,
+                  bottom: 1,
+                  left: 38,
+                  right: 0,
+                  child: Row(
+                    children: List.generate(
+                      6,
+                      (index) => Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: index == 3
+                                ? const Color(0xFFF4F0ED)
+                                : Colors.transparent,
+                            border: const Border(
+                              left: BorderSide(color: _line, width: 0.7),
+                            ),
+                          ),
+                          child: index == 3
+                              ? const Center(
+                                  child: RotatedBox(
+                                    quarterTurns: 3,
+                                    child: Text(
+                                      '定休日',
+                                      style: TextStyle(
+                                        color: Color(0xFFB4AAA5),
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : null,
                         ),
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 ),
+                Positioned(
+                  top: 43,
+                  left: 38 + (2 * 37.5),
+                  width: 70,
+                  height: 78,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: 1),
+                    duration: const Duration(milliseconds: 700),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, child) => Opacity(
+                      opacity: value,
+                      child: Transform.translate(
+                        offset: Offset(0, 10 * (1 - value)),
+                        child: child,
+                      ),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(9, 8, 7, 7),
+                      decoration: BoxDecoration(
+                        color: _orange,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x2AE3A16F),
+                            blurRadius: 12,
+                            offset: Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'た',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Spacer(),
+                          Text(
+                            '13:00',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            '〜 13:30',
+                            style: TextStyle(
+                              color: Color(0xFFFDF1E8),
+                              fontSize: 9,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DemoDay extends StatelessWidget {
+  const _DemoDay({
+    required this.label,
+    required this.date,
+    this.selected = false,
+    this.weekend = false,
+  });
+
+  final String label;
+  final String date;
+  final bool selected;
+  final bool weekend;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = weekend ? _accent : _muted;
+    return Expanded(
+      child: Column(
+        children: [
+          Text(label, style: TextStyle(color: color, fontSize: 9)),
+          const SizedBox(height: 3),
+          Container(
+            width: 25,
+            height: 25,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: selected ? _ink : Colors.transparent,
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              date,
+              style: TextStyle(
+                color: selected ? Colors.white : color,
+                fontSize: 10,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimeLine extends StatelessWidget {
+  const _TimeLine({required this.time});
+
+  final String time;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 38,
+            child: Transform.translate(
+              offset: const Offset(0, -5),
+              child: Text(
+                time,
+                style: const TextStyle(color: _muted, fontSize: 8),
+              ),
+            ),
+          ),
+          const Expanded(child: Divider(height: 1, color: _CalendarDemo._line)),
         ],
       ),
     );
@@ -686,17 +803,9 @@ class _WebBookingDemoState extends State<_WebBookingDemo> {
 }
 
 class _StartPage extends StatelessWidget {
-  const _StartPage({
-    required this.isLoading,
-    required this.onApple,
-    required this.onGoogle,
-    required this.onEmail,
-  });
+  const _StartPage({required this.onStart});
 
-  final bool isLoading;
-  final VoidCallback onApple;
-  final VoidCallback onGoogle;
-  final VoidCallback onEmail;
+  final VoidCallback onStart;
 
   @override
   Widget build(BuildContext context) {
@@ -711,7 +820,13 @@ class _StartPage extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(27),
-              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 30, offset: Offset(0, 12))],
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x14000000),
+                  blurRadius: 30,
+                  offset: Offset(0, 12),
+                ),
+              ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(24),
@@ -719,88 +834,47 @@ class _StartPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 28),
-          const Text('今すぐ始める', style: TextStyle(color: _ink, fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1)),
+          const Text(
+            '今すぐ始める',
+            style: TextStyle(
+              color: _ink,
+              fontSize: 32,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -1,
+            ),
+          ),
           const SizedBox(height: 10),
-          const Text('サロンワークを、もっと美しくシンプルに。', textAlign: TextAlign.center, style: TextStyle(color: _muted, fontSize: 15)),
-          const SizedBox(height: 38),
-          if (isLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 55),
-              child: CupertinoActivityIndicator(radius: 14),
-            )
-          else ...[
-            _SocialButton(
-              backgroundColor: _ink,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.apple, size: 25),
-              label: 'Appleでログイン',
-              onPressed: onApple,
+          const Text(
+            'サロンワークを、もっと美しくシンプルに。',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _muted, fontSize: 15),
+          ),
+          const SizedBox(height: 42),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: FilledButton(
+              onPressed: onStart,
+              style: FilledButton.styleFrom(
+                backgroundColor: _ink,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: const Text(
+                'SalonNoteを始める',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
             ),
-            const SizedBox(height: 12),
-            _SocialButton(
-              backgroundColor: Colors.white,
-              foregroundColor: _ink,
-              icon: Image.asset('assets/images/google.png', width: 20, height: 20),
-              label: 'Googleでログイン',
-              onPressed: onGoogle,
-              border: const BorderSide(color: Color(0xFFE2DCDA)),
-            ),
-            const SizedBox(height: 14),
-            TextButton(
-              onPressed: onEmail,
-              child: const Text('メールアドレスでログイン', style: TextStyle(color: _muted, fontWeight: FontWeight.w600)),
-            ),
-          ],
+          ),
           const SizedBox(height: 18),
           const Text(
-            '続行すると、利用規約とプライバシーポリシーに\n同意したものとみなされます。',
+            'ログイン済みの場合は、そのまま予約管理画面へ進みます。',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFFA39A96), fontSize: 11, height: 1.6),
+            style: TextStyle(color: Color(0xFFA39A96), fontSize: 11),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SocialButton extends StatelessWidget {
-  const _SocialButton({
-    required this.backgroundColor,
-    required this.foregroundColor,
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-    this.border,
-  });
-
-  final Color backgroundColor;
-  final Color foregroundColor;
-  final Widget icon;
-  final String label;
-  final VoidCallback onPressed;
-  final BorderSide? border;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: FilledButton(
-        onPressed: onPressed,
-        style: FilledButton.styleFrom(
-          backgroundColor: backgroundColor,
-          foregroundColor: foregroundColor,
-          side: border,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            icon,
-            const SizedBox(width: 10),
-            Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          ],
-        ),
       ),
     );
   }
