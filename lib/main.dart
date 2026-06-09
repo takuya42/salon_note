@@ -10,8 +10,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
+import 'onboarding/providers/onboarding_provider.dart';
 import 'services/push_notification_service.dart';
 import 'web/web_router.dart';
 import 'web/web_url_strategy.dart';
@@ -25,6 +27,8 @@ void main() {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    final sharedPreferences = await SharedPreferences.getInstance();
 
     if (!kIsWeb) {
       await PushNotificationService.instance.initialize();
@@ -62,8 +66,11 @@ void main() {
     }
 
     runApp(
-      const ProviderScope(
-        child: SalonNoteApp(),
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+        ],
+        child: const SalonNoteApp(),
       ),
     );
   }, (error, stack) {
