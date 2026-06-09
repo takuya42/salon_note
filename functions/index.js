@@ -13,7 +13,9 @@ const {
   summarizeSendResponses,
 } = require("./notification");
 
-initializeApp();
+const app = initializeApp();
+const db = getFirestore(app);
+const messaging = getMessaging(app);
 
 const REGION = "asia-northeast2";
 const RESERVATIONS_ROUTE = "reservations";
@@ -29,7 +31,6 @@ exports.notifyOwnerOfWebReservation = onDocumentCreated(
       if (!shouldNotifyWebReservation(reservation)) return;
 
       const {shopId, reservationId} = event.params;
-      const db = getFirestore();
       const shopSnapshot = await db.collection("shops").doc(shopId).get();
       const ownerIdValue = shopSnapshot.data()?.ownerId;
       const ownerId = typeof ownerIdValue === "string" ?
@@ -84,7 +85,7 @@ exports.notifyOwnerOfWebReservation = onDocumentCreated(
       };
       logger.info("Sending web reservation notification", deliveryContext);
 
-      const response = await getMessaging().sendEachForMulticast({
+      const response = await messaging.sendEachForMulticast({
         tokens,
         notification: {
           title: "新しい予約が入りました",
