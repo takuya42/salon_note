@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../widgets/banner_ad_widget.dart';
 import '../providers/sales_provider.dart';
+import '../widgets/sales_editor_sheet.dart';
 
 class SalesTab extends ConsumerStatefulWidget {
   const SalesTab({super.key});
@@ -19,7 +20,6 @@ class _SalesTabState extends ConsumerState<SalesTab> {
   String view = 'week';
   DateTime selectedWeek = DateTime.now();
   DateTime selectedMonth = DateTime.now();
-  DateTime inputDate = DateTime.now();
 
   String? get _uid => FirebaseAuth.instance.currentUser?.uid;
 
@@ -100,104 +100,33 @@ class _SalesTabState extends ConsumerState<SalesTab> {
   }
 
   Future<void> _showSalesSheet(
-    CollectionReference<Map<String, dynamic>> salesCollection,
-  ) async {
-    final priceController = TextEditingController();
-    final menuController = TextEditingController();
-
-    await showModalBottomSheet<void>(
+      CollectionReference<Map<String, dynamic>> salesCollection,
+      ) {
+    return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          20,
-          20,
-          MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              '売上入力',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              title: const Text('日付'),
-              subtitle: Text(
-                '${inputDate.year}/${inputDate.month}/${inputDate.day}',
-              ),
-              trailing: const Icon(Icons.calendar_month),
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: sheetContext,
-                  initialDate: inputDate,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2035),
-                );
-                if (picked != null && mounted) setState(() => inputDate = picked);
-              },
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: priceController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: '金額',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: menuController,
-              decoration: const InputDecoration(
-                labelText: 'メニュー',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () async {
-                  final price = double.tryParse(priceController.text);
-                  if (price == null || price <= 0) {
-                    ScaffoldMessenger.of(sheetContext).showSnackBar(
-                      const SnackBar(content: Text('正しい金額を入力してください')),
-                    );
-                    return;
-                  }
-                  try {
-                    await salesCollection.add({
-                      'price': price,
-                      'menu': menuController.text.trim(),
-                      'date': inputDate,
-                      'createdAt': FieldValue.serverTimestamp(),
-                    });
-                    if (sheetContext.mounted) Navigator.pop(sheetContext);
-                  } catch (_) {
-                    if (sheetContext.mounted) {
-                      ScaffoldMessenger.of(sheetContext).showSnackBar(
-                        const SnackBar(content: Text('保存に失敗しました')),
-                      );
-                    }
-                  }
-                },
-                child: const Text('保存'),
-              ),
-            ),
-          ],
-        ),
+      builder: (_) => SalesEditorSheet(
+        initialDate: DateTime.now(),
+        onSave: ({
+          required double price,
+          required String menu,
+          required DateTime date,
+        }) async {
+          await salesCollection.add({
+            'price': price,
+            'menu': menu,
+            'date': date,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        },
       ),
     );
-    priceController.dispose();
-    menuController.dispose();
   }
+
 
   Future<void> deleteSales(String id) async {
     if (_uid == null) return;
