@@ -157,12 +157,22 @@ service cloud.firestore {
 
       match /reservations/{reservationId} {
         allow read: if isSalonAdmin(shopId);
-        allow create: if isValidReservationCreate()
+        // Public web reservations are created only by the callable Cloud
+        // Function, whose transaction also creates the unique slot lock.
+        allow create: if isSalonAdmin(shopId)
+          && isValidReservationCreate()
           && request.resource.data.shopId == shopId;
         allow update: if isSalonAdmin(shopId)
           && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status'])
           && request.resource.data.status in ['pending', 'confirmed', 'completed', 'cancelled', '予約受付', '来店済み', 'キャンセル'];
         allow delete: if isSalonAdmin(shopId);
+      }
+
+      match /reservationSlots/{slotId} {
+        // Slot documents are an internal uniqueness index. Public clients
+        // cannot create or alter locks outside the server transaction.
+        allow read: if isSalonAdmin(shopId);
+        allow create, update, delete: if false;
       }
 
       match /{document=**} {
@@ -185,7 +195,8 @@ service cloud.firestore {
 
     match /reservations/{reservationId} {
       allow read: if isSalonAdmin(resource.data.shopId);
-      allow create: if isValidReservationCreate();
+      allow create: if isValidReservationCreate()
+        && isSalonAdmin(request.resource.data.shopId);
       allow update: if isSalonAdmin(resource.data.shopId)
         && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status'])
         && request.resource.data.status in ['予約受付', '来店済み', 'キャンセル'];

@@ -3,6 +3,8 @@ const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {getMessaging} = require("firebase-admin/messaging");
 const {logger} = require("firebase-functions");
 const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+const {onCall} = require("firebase-functions/v2/https");
+const {createWebReservation} = require("./booking");
 const {
   buildNotificationBody,
   getFcmTokens,
@@ -20,6 +22,11 @@ const messaging = getMessaging(app);
 const REGION = "asia-northeast2";
 const RESERVATIONS_ROUTE = "reservations";
 const RESERVATIONS_CHANNEL = "reservations";
+
+exports.createWebReservation = onCall(
+    {region: REGION},
+    async (request) => createWebReservation(db, request.data),
+);
 
 exports.notifyOwnerOfWebReservation = onDocumentCreated(
     {

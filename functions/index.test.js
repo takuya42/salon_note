@@ -110,3 +110,109 @@ test("summarizes every multicast response without logging full tokens", () => {
     "...nd-token",
   ]);
 });
+
+const {
+  DUPLICATE_RESERVATION_MESSAGE,
+  createWebReservation,
+  reservationSlotId,
+} = require("./booking");
+
+class FakeReference {
+  constructor(path, database) {
+    this.path = path;
+    this.database = database;
+  }
+
+  collection(name) {
+    return new FakeCollection(`${this.path}/${name}`, this.database);
+  }
+}
+
+class FakeCollection extends FakeReference {
+  doc(id = "generated-reservation-id") {
+    return new FakeReference(`${this.path}/${id}`, this.database);
+  }
+
+  where(field, operator, value) {
+    return new FakeQuery(this.path, this.database, [[field, operator, value]]);
+  }
+}
+
+class FakeQuery {
+  constructor(path, database, filters) {
+    this.path = path;
+    this.database = database;
+    this.filters = filters;
+  }
+
+  where(field, operator, value) {
+    return new FakeQuery(
+        this.path,
+        this.database,
+        [...this.filters, [field, operator, value]],
+    );
+  }
+
+  limit() {
+    return this;
+  }
+}
+
+function fakeSnapshot({exists = false, data, docs = []} = {}) {
+  return {
+    exists,
+    empty: docs.length === 0,
+    data: () => data,
+    docs: docs.map((value) => ({data: () => value})),
+  };
+}
+
+class DuplicateFakeFirestore {
+  collection(name) {
+    return new FakeCollection(name, this);
+  }
+
+  async runTransaction(callback) {
+    return callback({
+      get: async (target) => {
+        if (target.path === "shops/shop-1") {
+          return fakeSnapshot({exists: true, data: {isWebPublished: true}});
+        }
+        if (target.path === "menus/menu-1") {
+          return fakeSnapshot({
+            exists: true,
+            data: {shopId: "shop-1", duration: 30},
+          });
+        }
+        if (target.path === "shops/shop-1/reservations") {
+          return fakeSnapshot({docs: [{reservationId: "existing"}]});
+        }
+        return fakeSnapshot();
+      },
+      create: () => assert.fail("duplicate reservation must not be written"),
+    });
+  }
+}
+
+test("builds a shop-scoped exact-start slot identifier", () => {
+  const timestamp = {toMillis: () => 1781053200000};
+  assert.equal(reservationSlotId(timestamp), "1781053200000");
+});
+
+test("rejects an existing reservation at the exact same time", async () => {
+  await assert.rejects(
+      createWebReservation(new DuplicateFakeFirestore(), {
+        shopId: "shop-1",
+        menuId: "menu-1",
+        customerName: "山田太郎",
+        customerPhone: "09012345678",
+        customerEmail: "customer@example.com",
+        reservationDateTimeMillis: 1781053200000,
+      }),
+      (error) => {
+        assert.equal(error.code, "already-exists");
+        assert.equal(error.message, DUPLICATE_RESERVATION_MESSAGE);
+        return true;
+      },
+  );
+});
