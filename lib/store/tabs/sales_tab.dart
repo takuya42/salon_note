@@ -19,7 +19,6 @@ class _SalesTabState extends ConsumerState<SalesTab> {
   String view = 'week';
   DateTime selectedWeek = DateTime.now();
   DateTime selectedMonth = DateTime.now();
-  DateTime inputDate = DateTime.now();
 
   String? get _uid => FirebaseAuth.instance.currentUser?.uid;
 
@@ -85,135 +84,53 @@ class _SalesTabState extends ConsumerState<SalesTab> {
           .doc(uid)
           .get();
       final plan = userDoc.data()?['plan'] ?? 'free';
-      final salesSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('sales')
-          .get();
+      final salesCollection = await currentUserSalesCollection();
+      final salesSnapshot = await salesCollection.get();
 
       if (plan == 'free' && salesSnapshot.docs.length >= 3) {
         _showMessage('無料プランは売上3件までです');
         return;
       }
       if (!mounted) return;
-      await _showSalesSheet(uid);
+      await _showSalesSheet(salesCollection);
     } catch (_) {
       _showMessage('売上情報の確認に失敗しました。もう一度お試しください');
     }
   }
 
-  Future<void> _showSalesSheet(String uid) async {
-    final priceController = TextEditingController();
-    final menuController = TextEditingController();
-
-    await showModalBottomSheet<void>(
+  Future<void> _showSalesSheet(
+    CollectionReference<Map<String, dynamic>> salesCollection,
+  ) {
+    return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          20,
-          20,
-          MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              '売上入力',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              title: const Text('日付'),
-              subtitle: Text(
-                '${inputDate.year}/${inputDate.month}/${inputDate.day}',
-              ),
-              trailing: const Icon(Icons.calendar_month),
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: sheetContext,
-                  initialDate: inputDate,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2035),
-                );
-                if (picked != null && mounted) setState(() => inputDate = picked);
-              },
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: priceController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: '金額',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: menuController,
-              decoration: const InputDecoration(
-                labelText: 'メニュー',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () async {
-                  final price = double.tryParse(priceController.text);
-                  if (price == null || price <= 0) {
-                    ScaffoldMessenger.of(sheetContext).showSnackBar(
-                      const SnackBar(content: Text('正しい金額を入力してください')),
-                    );
-                    return;
-                  }
-                  try {
-                    await FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(uid)
-                        .collection('sales')
-                        .add({
-                      'price': price,
-                      'menu': menuController.text.trim(),
-                      'date': inputDate,
-                      'createdAt': FieldValue.serverTimestamp(),
-                    });
-                    if (sheetContext.mounted) Navigator.pop(sheetContext);
-                  } catch (_) {
-                    if (sheetContext.mounted) {
-                      ScaffoldMessenger.of(sheetContext).showSnackBar(
-                        const SnackBar(content: Text('保存に失敗しました')),
-                      );
-                    }
-                  }
-                },
-                child: const Text('保存'),
-              ),
-            ),
-          ],
-        ),
+      builder: (_) => _SalesEditorSheet(
+        initialDate: DateTime.now(),
+        onSave: ({
+          required double price,
+          required String menu,
+          required DateTime date,
+        }) async {
+          await salesCollection.add({
+            'price': price,
+            'menu': menu,
+            'date': date,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        },
       ),
     );
-    priceController.dispose();
-    menuController.dispose();
   }
 
   Future<void> deleteSales(String id) async {
-    final uid = _uid;
-    if (uid == null) return;
+    if (_uid == null) return;
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('sales')
-          .doc(id)
-          .delete();
+      final salesCollection = await currentUserSalesCollection();
+      await salesCollection.doc(id).delete();
     } catch (_) {
       _showMessage('削除に失敗しました');
     }
@@ -357,6 +274,154 @@ class _SalesTabState extends ConsumerState<SalesTab> {
             color: const Color(0xFFB08E85),
             barWidth: 3,
             dotData: const FlDotData(show: false),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+typedef _SaveSale = Future<void> Function({
+  required double price,
+  required String menu,
+  required DateTime date,
+});
+
+class _SalesEditorSheet extends StatefulWidget {
+  const _SalesEditorSheet({
+    required this.initialDate,
+    required this.onSave,
+    this.initialPrice,
+    this.initialMenu = '',
+  });
+
+  final DateTime initialDate;
+  final double? initialPrice;
+  final String initialMenu;
+  final _SaveSale onSave;
+
+  @override
+  State<_SalesEditorSheet> createState() => _SalesEditorSheetState();
+}
+
+class _SalesEditorSheetState extends State<_SalesEditorSheet> {
+  late final TextEditingController _priceController;
+  late final TextEditingController _menuController;
+  late DateTime _selectedDate;
+  var _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.initialDate;
+    _priceController = TextEditingController(
+      text: widget.initialPrice?.toString() ?? '',
+    );
+    _menuController = TextEditingController(text: widget.initialMenu);
+  }
+
+  @override
+  void dispose() {
+    _priceController.dispose();
+    _menuController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035),
+    );
+    if (!mounted || picked == null) return;
+    setState(() => _selectedDate = picked);
+  }
+
+  Future<void> _save() async {
+    if (_isSaving) return;
+
+    // Read controller values before the async gap. The callback never receives
+    // a controller, so closing the sheet cannot lead to disposed-controller use.
+    final price = double.tryParse(_priceController.text);
+    final menu = _menuController.text.trim();
+    final date = _selectedDate;
+    if (price == null || price <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('正しい金額を入力してください')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      await widget.onSave(price: price, menu: menu, date: date);
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('保存に失敗しました')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            '売上入力',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 20),
+          ListTile(
+            title: const Text('日付'),
+            subtitle: Text(
+              '${_selectedDate.year}/${_selectedDate.month}/${_selectedDate.day}',
+            ),
+            trailing: const Icon(Icons.calendar_month),
+            onTap: _isSaving ? null : _selectDate,
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _priceController,
+            enabled: !_isSaving,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: '金額',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _menuController,
+            enabled: !_isSaving,
+            decoration: const InputDecoration(
+              labelText: 'メニュー',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _isSaving ? null : _save,
+              child: _isSaving
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('保存'),
+            ),
           ),
         ],
       ),
