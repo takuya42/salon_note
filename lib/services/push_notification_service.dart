@@ -44,6 +44,10 @@ class PushNotificationService {
     if (kIsWeb || _initialized) return;
     _initialized = true;
 
+    debugPrint(
+      'Push notification initialization started '
+      '(Firebase apps: ${Firebase.apps.length}).',
+    );
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
     await _localNotifications.initialize(
@@ -78,6 +82,20 @@ class PushNotificationService {
     debugPrint(
       'Notification permission status: ${settings.authorizationStatus}',
     );
+    if (_usesApns) {
+      final apnsToken = await _waitForApnsToken(messaging);
+      if (apnsToken == null) {
+        debugPrint(
+          'APNs token is unavailable after notification permission request. '
+          'Confirm this is a signed physical device build and inspect the '
+          'AppDelegate APNs registration logs.',
+        );
+      } else {
+        debugPrint(
+          'APNs token acquired during startup (${_tokenSuffix(apnsToken)}).',
+        );
+      }
+    }
     await messaging.setForegroundNotificationPresentationOptions(
       alert: false,
       badge: false,
@@ -103,8 +121,13 @@ class PushNotificationService {
     });
     messaging.onTokenRefresh.listen(
       (token) async {
+        debugPrint('FCM token refreshed (${_tokenSuffix(token)}).');
         final user = FirebaseAuth.instance.currentUser;
-        if (user != null) await _saveTokenSafely(user.uid, token);
+        if (user == null) {
+          debugPrint('FCM token refresh save skipped: no signed-in user.');
+          return;
+        }
+        await _saveTokenWithApnsDiagnostics(user.uid, token);
       },
       onError: (Object error) {
         debugPrint('FCM token refresh failed: $error');
@@ -119,22 +142,12 @@ class PushNotificationService {
 
   Future<void> _saveCurrentToken(String uid) async {
     try {
-      final messaging = FirebaseMessaging.instance;
-      if (_usesApns) {
-        final apnsToken = await _waitForApnsToken(messaging);
-        if (apnsToken == null) {
-          debugPrint(
-            'FCM token registration deferred: APNs token was not available.',
-          );
-          return;
-        }
-        debugPrint('APNs token registered (${_tokenSuffix(apnsToken)}).');
-      }
-
-      final token = await messaging.getToken();
+      final token = await FirebaseMessaging.instance.getToken();
       if (token != null && token.isNotEmpty) {
         debugPrint('FCM token registered (${_tokenSuffix(token)}).');
-        await _saveTokenSafely(uid, token);
+        await _saveTokenWithApnsDiagnostics(uid, token);
+      } else {
+        debugPrint('FCM token registration failed: getToken returned null.');
       }
     } catch (error) {
       debugPrint('FCM token registration failed: $error');
@@ -148,8 +161,19 @@ class PushNotificationService {
   Future<String?> _waitForApnsToken(FirebaseMessaging messaging) async {
     const attempts = 20;
     for (var attempt = 0; attempt < attempts; attempt++) {
-      final token = await messaging.getAPNSToken();
-      if (token != null && token.isNotEmpty) return token;
+      try {
+        final token = await messaging.getAPNSToken();
+        if (token != null && token.isNotEmpty) return token;
+      } catch (error) {
+        debugPrint(
+          'APNs token read failed (attempt ${attempt + 1}/$attempts): $error',
+        );
+      }
+      if (attempt == 0 || attempt == attempts - 1) {
+        debugPrint(
+          'Waiting for APNs token (attempt ${attempt + 1}/$attempts).',
+        );
+      }
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
     return null;
@@ -161,15 +185,42 @@ class PushNotificationService {
     return '...${token.substring(token.length - visibleCharacters)}';
   }
 
-  Future<void> _saveTokenSafely(String uid, String token) async {
+  Future<void> _saveTokenWithApnsDiagnostics(String uid, String token) async {
+    String? apnsToken;
+    if (_usesApns) {
+      apnsToken = await _waitForApnsToken(FirebaseMessaging.instance);
+      if (apnsToken == null) {
+        debugPrint(
+          'FCM token save deferred: APNs token is unavailable, so the iOS '
+          'FCM/APNs association cannot be confirmed.',
+        );
+        return;
+      }
+      debugPrint(
+        'FCM/APNs association ready: FCM ${_tokenSuffix(token)}, '
+        'APNs ${_tokenSuffix(apnsToken)}.',
+      );
+    }
+    await _saveTokenSafely(uid, token, apnsToken: apnsToken);
+  }
+
+  Future<void> _saveTokenSafely(
+    String uid,
+    String token, {
+    String? apnsToken,
+  }) async {
     try {
-      await _saveToken(uid, token);
+      await _saveToken(uid, token, apnsToken: apnsToken);
     } catch (error) {
       debugPrint('FCM token save failed: $error');
     }
   }
 
-  Future<void> _saveToken(String uid, String token) {
+  Future<void> _saveToken(
+    String uid,
+    String token, {
+    String? apnsToken,
+  }) {
     return FirebaseFirestore.instance.collection('users').doc(uid).set(
       {
         // Keep one canonical token per owner. Replacing the array removes
@@ -177,6 +228,13 @@ class PushNotificationService {
         'fcmToken': token,
         'fcmTokens': [token],
         'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+        if (apnsToken != null)
+          'pushTokenDiagnostics': {
+            'platform': 'ios',
+            'apnsTokenSuffix': _tokenSuffix(apnsToken),
+            'fcmTokenSuffix': _tokenSuffix(token),
+            'linkedAt': FieldValue.serverTimestamp(),
+          },
       },
       SetOptions(merge: true),
     );
