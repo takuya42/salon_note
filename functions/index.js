@@ -24,7 +24,33 @@ const RESERVATIONS_CHANNEL = "reservations";
 
 exports.createWebReservation = onCall(
     {region: REGION},
-    async (request) => createWebReservation(db, request.data),
+    async (request) => {
+      logger.info("createWebReservation callable received", {
+        requestData: request.data ?? null,
+      });
+      try {
+        const result = await createWebReservation(db, request.data);
+        logger.info("createWebReservation callable succeeded", result);
+        return result;
+      } catch (error) {
+        logger.error("createWebReservation callable failed", {
+          requestData: request.data ?? null,
+          code: error?.code ?? null,
+          errorMessage: error?.message ?? String(error),
+          details: error?.details ?? null,
+          stack: error?.stack ?? null,
+          permissionDenied: error?.code === "permission-denied" ||
+            error?.code === 7,
+          failedPrecondition: error?.code === "failed-precondition" ||
+            error?.code === 9,
+          invalidArgument: error?.code === "invalid-argument" ||
+            error?.code === 3,
+          alreadyExists: error?.code === "already-exists" ||
+            error?.code === 6,
+        });
+        throw error;
+      }
+    },
 );
 
 exports.notifyOwnerOfWebReservation = onDocumentCreated(

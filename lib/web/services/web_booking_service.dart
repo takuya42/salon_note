@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/web_reservation.dart';
 import 'web_booking_callable.dart';
@@ -13,6 +14,16 @@ class DuplicateReservationException implements Exception {
 
   @override
   String toString() => duplicateReservationMessage;
+}
+
+class WebReservationSaveException implements Exception {
+  const WebReservationSaveException(this.code, this.userMessage);
+
+  final String code;
+  final String userMessage;
+
+  @override
+  String toString() => userMessage;
 }
 
 abstract interface class WebReservationCreator {
@@ -36,16 +47,27 @@ class WebBookingService implements WebReservationCreator {
 
   @override
   Future<String> createReservation(WebReservation reservation) async {
+    final requestData = <String, dynamic>{
+      'shopId': reservation.shopId,
+      'menuId': reservation.menuId,
+      'customerName': reservation.customerName,
+      'customerPhone': reservation.customerPhone,
+      'customerEmail': reservation.customerEmail,
+      'reservationDateTimeMillis':
+          reservation.reservationDateTime.millisecondsSinceEpoch,
+    };
+    debugPrint('[WebReservation] shopId=${reservation.shopId}');
+    debugPrint('[WebReservation] menuId=${reservation.menuId}');
+    debugPrint('[WebReservation] customerName=${reservation.customerName}');
+    debugPrint('[WebReservation] customerEmail=${reservation.customerEmail}');
+    debugPrint(
+      '[WebReservation] reservationDateTime='
+      '${reservation.reservationDateTime.toIso8601String()}',
+    );
+    debugPrint('[WebReservation] callable request=$requestData');
+
     try {
-      final data = await _callable.call(<String, dynamic>{
-        'shopId': reservation.shopId,
-        'menuId': reservation.menuId,
-        'customerName': reservation.customerName,
-        'customerPhone': reservation.customerPhone,
-        'customerEmail': reservation.customerEmail,
-        'reservationDateTimeMillis':
-            reservation.reservationDateTime.millisecondsSinceEpoch,
-      });
+      final data = await _callable.call(requestData);
       final reservationId = data['reservationId'] as String?;
       if (reservationId == null || reservationId.isEmpty) {
         throw StateError('Reservation ID was not returned.');
@@ -65,11 +87,23 @@ class WebBookingService implements WebReservationCreator {
         createdAt: reservation.createdAt,
       );
       await _extensionService.onReservationCreated(createdReservation);
+      debugPrint('[WebReservation] saved reservationId=$reservationId');
       return reservationId;
     } on WebBookingCallableException catch (error) {
+      debugPrint(
+        '[WebReservation] Functions error code=${error.code} '
+        'message=${error.message}',
+      );
       if (error.code == 'already-exists') {
         throw const DuplicateReservationException();
       }
+      throw WebReservationSaveException(
+        error.code,
+        _userMessageForCallableCode(error.code),
+      );
+    } catch (error, stackTrace) {
+      debugPrint('[WebReservation] unexpected error=$error');
+      debugPrintStack(stackTrace: stackTrace);
       rethrow;
     }
   }
@@ -79,5 +113,22 @@ class WebBookingService implements WebReservationCreator {
         await _firestore.collection('reservations').doc(reservationId).get();
     if (!snapshot.exists) return null;
     return WebReservation.fromFirestore(snapshot);
+  }
+}
+
+String _userMessageForCallableCode(String code) {
+  switch (code) {
+    case 'permission-denied':
+      return '予約を受け付けられませんでした。店舗の公開設定をご確認ください。';
+    case 'failed-precondition':
+      return 'この店舗またはメニューは現在予約を受け付けていません。';
+    case 'invalid-argument':
+      return '入力内容を確認し、もう一度お試しください。';
+    case 'not-found':
+      return '選択した店舗またはメニューが見つかりません。再読み込みしてください。';
+    case 'unavailable':
+      return '予約サービスに接続できません。通信状況を確認して再度お試しください。';
+    default:
+      return '予約を保存できませんでした。時間をおいて再度お試しください。';
   }
 }
