@@ -13,9 +13,10 @@ class ForceUpdateService {
 
   static const String minimumVersionKey = 'minimum_version';
 
-  /// TODO: App Store の実URLに差し替えてください
+
   static const String appStoreUrl =
-      'https://apps.apple.com/jp/app/salonnote/id1234567890';
+      'https://apps.apple.com/jp/app/salon-note-%E3%82%B5%E3%83%AD%E3%83%B3%E3%83%8E%E3%83%BC%E3%83%88/id6762115745';
+
 
   final FirebaseRemoteConfig _remoteConfig;
   final PackageInfo? _packageInfo;
@@ -29,7 +30,7 @@ class ForceUpdateService {
       await _remoteConfig.setConfigSettings(
         RemoteConfigSettings(
           fetchTimeout: const Duration(seconds: 10),
-          minimumFetchInterval: const Duration(hours: 1),
+            minimumFetchInterval: const Duration(hours: 1)
         ),
       );
 
