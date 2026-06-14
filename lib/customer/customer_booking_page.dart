@@ -674,31 +674,83 @@ class _CustomerBookingPageState extends State<CustomerBookingPage> {
                         child: StreamBuilder<QuerySnapshot>(
                           stream: FirebaseFirestore.instance
                               .collection('shops')
+                              .where('isWebPublished', isEqualTo: true)
                               .snapshots(),
 
                           builder: (context, snapshot) {
-                            if (!snapshot.hasData) {
+                            if (snapshot.connectionState ==
+                                    ConnectionState.waiting &&
+                                !snapshot.hasData) {
+                              debugPrint(
+                                '[ShopSearch] 公開店舗一覧を読み込み中です。',
+                              );
                               return const Center(
                                 child: CircularProgressIndicator(),
+                              );
+                            }
+
+                            if (snapshot.hasError) {
+                              debugPrint(
+                                '[ShopSearch] 公開店舗一覧の取得に失敗しました: '
+                                '${snapshot.error}',
+                              );
+                              return Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.error_outline,
+                                      color: Colors.redAccent,
+                                      size: 40,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      '店舗一覧を読み込めませんでした',
+                                      style: TextStyle(
+                                        color: darkBrown,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      '通信環境を確認して、もう一度お試しください。',
+                                      style: TextStyle(
+                                        color: darkBrown.withOpacity(0.6),
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
                               );
                             }
 
                             final keyword =
                             searchController.text.toLowerCase();
 
-                            final docs =
-                            snapshot.data!.docs.where((doc) {
-                              final name = (doc['name'] ?? "")
+                            final allDocs = snapshot.data?.docs ?? [];
+                            final docs = allDocs.where((doc) {
+                              final data =
+                                  doc.data() as Map<String, dynamic>;
+                              final name = (data['name'] ??
+                                      data['shopName'] ??
+                                      "")
                                   .toString()
                                   .toLowerCase();
 
                               return name.contains(keyword);
                             }).toList();
+                            debugPrint(
+                              '[ShopSearch] 公開店舗 ${allDocs.length}件、'
+                              '検索結果 ${docs.length}件 '
+                              '(keyword="$keyword")',
+                            );
 
                             if (docs.isEmpty) {
                               return Center(
                                 child: Text(
-                                  "店舗が見つかりません",
+                                  keyword.isEmpty
+                                      ? "現在公開中の店舗はありません"
+                                      : "店舗が見つかりません",
                                   style: TextStyle(
                                     color:
                                     darkBrown.withOpacity(0.6),
@@ -787,7 +839,10 @@ class _CustomerBookingPageState extends State<CustomerBookingPage> {
                                           /// 店舗名
                                           Expanded(
                                             child: Text(
-                                              data['name'] ?? '',
+                                              (data['name'] ??
+                                                      data['shopName'] ??
+                                                      doc.id)
+                                                  .toString(),
 
                                               style: const TextStyle(
                                                 fontSize: 16,

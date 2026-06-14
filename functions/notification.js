@@ -5,25 +5,12 @@ function shouldNotifyWebReservation(reservation) {
 function getFcmTokens(user) {
   if (!user) return [];
 
-  const currentToken = normalizeToken(user.fcmToken);
-  if (currentToken) return [currentToken];
-
-  if (!Array.isArray(user.fcmTokens)) return [];
-  // Legacy arrayUnion writes appended refreshed tokens, so the last valid
-  // value is the best available current token when fcmToken is absent.
-  for (let index = user.fcmTokens.length - 1; index >= 0; index--) {
-    const token = normalizeToken(user.fcmTokens[index]);
-    if (token) return [token];
-  }
-  return [];
-}
-
-function needsTokenNormalization(user, token) {
-  if (!token) return false;
-  return normalizeToken(user?.fcmToken) !== token ||
-    !Array.isArray(user?.fcmTokens) ||
-    user.fcmTokens.length !== 1 ||
-    normalizeToken(user.fcmTokens[0]) !== token;
+  return [...new Set([
+    normalizeToken(user.fcmToken),
+    ...(Array.isArray(user.fcmTokens) ?
+      user.fcmTokens.map(normalizeToken) :
+      []),
+  ].filter(Boolean))];
 }
 
 function normalizeToken(value) {
@@ -46,7 +33,7 @@ function buildNotificationBody(reservation) {
   );
   const date = reservation.reservationDateTime ??
     reservation.start ?? reservation.date;
-  return `${customerName}\n${formatReservationDate(date)}\n${menuName}`;
+  return `${customerName}様 / ${formatReservationDate(date)} / ${menuName}`;
 }
 
 function formatReservationDate(value) {
@@ -55,15 +42,14 @@ function formatReservationDate(value) {
   if (Number.isNaN(date.getTime())) return "日時未設定";
   const parts = new Intl.DateTimeFormat("ja-JP", {
     timeZone: "Asia/Tokyo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
+    month: "numeric",
+    day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
   }).formatToParts(date);
   const part = (type) => parts.find((item) => item.type === type)?.value ?? "";
-  return `${part("year")}/${part("month")}/${part("day")} ` +
+  return `${part("month")}月${part("day")}日 ` +
     `${part("hour")}:${part("minute")}`;
 }
 
@@ -94,7 +80,6 @@ module.exports = {
   formatReservationDate,
   getFcmTokens,
   isInvalidToken,
-  needsTokenNormalization,
   redactFcmTokens,
   shouldNotifyWebReservation,
   summarizeSendResponses,

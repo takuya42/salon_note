@@ -9,7 +9,6 @@ const {
   buildNotificationBody,
   getFcmTokens,
   isInvalidToken,
-  needsTokenNormalization,
   redactFcmTokens,
   shouldNotifyWebReservation,
   summarizeSendResponses,
@@ -34,132 +33,145 @@ exports.notifyOwnerOfWebReservation = onDocumentCreated(
       region: REGION,
     },
     async (event) => {
-      const reservation = event.data?.data();
-      if (!shouldNotifyWebReservation(reservation)) return;
-
       const {shopId, reservationId} = event.params;
-      const shopSnapshot = await db.collection("shops").doc(shopId).get();
-      const ownerIdValue = shopSnapshot.data()?.ownerId;
-      const ownerId = typeof ownerIdValue === "string" ?
-        ownerIdValue.trim() : "";
-      if (!shopSnapshot.exists || !ownerId) {
-        logger.warn("Reservation shop has no ownerId", {shopId, reservationId});
-        return;
-      }
-
-      const userRef = db.collection("users").doc(ownerId);
-      const userSnapshot = await userRef.get();
-      if (!userSnapshot.exists) {
-        logger.warn("Reservation owner user document does not exist", {
+      const reservation = event.data?.data();
+      if (!shouldNotifyWebReservation(reservation)) {
+        logger.debug("Skipped non-web reservation notification", {
           shopId,
           reservationId,
-          ownerId,
+          source: reservation?.source ?? null,
         });
         return;
       }
 
-      const user = userSnapshot.data();
-      const tokens = getFcmTokens(user);
-      if (tokens.length === 0) {
-        logger.info("Reservation owner has no FCM token", {
-          shopId,
-          reservationId,
-          ownerId,
-        });
-        return;
-      }
+      try {
+        const shopSnapshot = await db.collection("shops").doc(shopId).get();
+        const ownerIdValue = shopSnapshot.data()?.ownerId;
+        const ownerId = typeof ownerIdValue === "string" ?
+          ownerIdValue.trim() : "";
+        if (!shopSnapshot.exists || !ownerId) {
+          logger.warn("Reservation shop has no ownerId", {shopId, reservationId});
+          return;
+        }
 
-      if (needsTokenNormalization(user, tokens[0])) {
-        await userRef.set({
-          fcmToken: tokens[0],
-          fcmTokens: [tokens[0]],
-        }, {merge: true});
-        logger.info("Normalized reservation owner FCM tokens", {
+        const userRef = db.collection("users").doc(ownerId);
+        const userSnapshot = await userRef.get();
+        if (!userSnapshot.exists) {
+          logger.warn("Reservation owner user document does not exist", {
+            shopId,
+            reservationId,
+            ownerId,
+          });
+          return;
+        }
+
+        const user = userSnapshot.data();
+        const tokens = getFcmTokens(user);
+        if (tokens.length === 0) {
+          logger.info("Reservation owner has no FCM token", {
+            shopId,
+            reservationId,
+            ownerId,
+            successCount: 0,
+            failureCount: 0,
+          });
+          return;
+        }
+
+        const deliveryContext = {
           shopId,
           reservationId,
           ownerId,
-          tokenCount: 1,
+          tokenCount: tokens.length,
           tokens: redactFcmTokens(tokens),
-        });
-      }
+        };
+        logger.info("Sending web reservation notification", deliveryContext);
 
-      const deliveryContext = {
-        shopId,
-        reservationId,
-        ownerId,
-        tokenCount: tokens.length,
-        tokens: redactFcmTokens(tokens),
-      };
-      logger.info("Sending web reservation notification", deliveryContext);
-
-      const response = await messaging.sendEachForMulticast({
-        tokens,
-        notification: {
-          title: "新しい予約が入りました",
-          body: buildNotificationBody(reservation),
-        },
-        data: {
-          route: RESERVATIONS_ROUTE,
-          shopId,
-          reservationId,
-        },
-        android: {
-          priority: "high",
-          notification: {channelId: RESERVATIONS_CHANNEL},
-        },
-        apns: {
-          headers: {
-            "apns-push-type": "alert",
-            "apns-priority": "10",
+        const response = await messaging.sendEachForMulticast({
+          tokens,
+          notification: {
+            title: "新しい予約が入りました",
+            body: buildNotificationBody(reservation),
           },
-          payload: {
-            aps: {
-              sound: "default",
-              badge: 1,
+          data: {
+            route: RESERVATIONS_ROUTE,
+            shopId,
+            reservationId,
+          },
+          android: {
+            priority: "high",
+            notification: {channelId: RESERVATIONS_CHANNEL},
+          },
+          apns: {
+            headers: {
+              "apns-push-type": "alert",
+              "apns-priority": "10",
+            },
+            payload: {
+              aps: {
+                sound: "default",
+                badge: 1,
+              },
             },
           },
-        },
-      });
+        });
 
-      const deliveryResponses = summarizeSendResponses(response, tokens);
-      deliveryResponses.forEach((deliveryResponse) => {
-        logger.info("FCM delivery response", {
+        const deliveryResponses = summarizeSendResponses(response, tokens);
+        deliveryResponses.forEach((deliveryResponse) => {
+          const log = deliveryResponse.success ? logger.info : logger.error;
+          log("FCM/APNs delivery response", {
+            shopId,
+            reservationId,
+            ownerId,
+            ...deliveryResponse,
+          });
+        });
+
+        const invalidTokens = response.responses
+            .map((result, index) =>
+              isInvalidToken(result.error) ? tokens[index] : null)
+            .filter(Boolean);
+        if (invalidTokens.length > 0) {
+          const invalidTokenSet = new Set(invalidTokens);
+          const validTokens = tokens.filter((token) => !invalidTokenSet.has(token));
+          const tokenUpdate = {fcmTokens: validTokens};
+          if (invalidTokenSet.has(user.fcmToken)) {
+            tokenUpdate.fcmToken = validTokens[0] ?? FieldValue.delete();
+          }
+          await userRef.set(tokenUpdate, {merge: true});
+          logger.warn("Removed invalid reservation owner FCM tokens", {
+            ...deliveryContext,
+            invalidTokens: redactFcmTokens(invalidTokens),
+            remainingTokenCount: validTokens.length,
+          });
+        }
+
+        const summary = {
+          ...deliveryContext,
+          successCount: response.successCount,
+          failureCount: response.failureCount,
+        };
+        logger.info("Web reservation notification result", summary);
+
+        if (response.failureCount > 0) {
+          logger.error("FCM/APNs delivery failed", {
+            ...summary,
+            responses: deliveryResponses,
+          });
+        } else {
+          logger.info("Sent web reservation notification", summary);
+        }
+      } catch (error) {
+        logger.error("Web reservation notification handler failed", {
           shopId,
           reservationId,
-          ownerId,
-          ...deliveryResponse,
+          code: error?.code ?? null,
+          message: error?.message ?? String(error),
+          stack: error?.stack ?? null,
+          successCount: 0,
+          failureCount: 1,
         });
-      });
-
-      const invalidTokens = response.responses
-          .map((result, index) =>
-            isInvalidToken(result.error) ? tokens[index] : null)
-          .filter(Boolean);
-      if (invalidTokens.length > 0) {
-        await userRef.update({
-          fcmToken: FieldValue.delete(),
-          fcmTokens: [],
-        });
-        logger.warn("Removed invalid reservation owner FCM token", {
-          ...deliveryContext,
-          invalidTokens: redactFcmTokens(invalidTokens),
-        });
-      }
-
-      const summary = {
-        ...deliveryContext,
-        successCount: response.successCount,
-        failureCount: response.failureCount,
-      };
-      logger.info("Web reservation notification result", summary);
-
-      if (response.failureCount > 0) {
-        logger.error("FCM delivery failed", {
-          ...summary,
-          responses: deliveryResponses,
-        });
-      } else {
-        logger.info("Sent web reservation notification", summary);
+        throw error;
       }
     },
 );
