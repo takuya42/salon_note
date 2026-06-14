@@ -77,6 +77,31 @@ void main() {
       expect(controller.state.isSubmitting, isFalse);
     });
 
+    test('shows a user-facing callable error message', () async {
+      bookingService.error = const WebReservationSaveException(
+        'failed-precondition',
+        'この店舗またはメニューは現在予約を受け付けていません。',
+      );
+      controller
+        ..setCustomerName('山田太郎')
+        ..setCustomerPhone('09012345678')
+        ..setCustomerEmail('customer@example.com')
+        ..setMenuId('menu-1')
+        ..setReservationDateTime(DateTime(2026, 6, 11, 10));
+
+      final reservationId = await controller.submit(
+        'shop-1',
+        closedWeekdays: const <int>{},
+      );
+
+      expect(reservationId, isNull);
+      expect(
+        controller.state.errorMessage,
+        'この店舗またはメニューは現在予約を受け付けていません。',
+      );
+      expect(controller.state.isSubmitting, isFalse);
+    });
+
     test(
       'does not call the save service when submission date is closed',
       () async {

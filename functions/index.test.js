@@ -98,6 +98,7 @@ class FakeReference {
   constructor(path, database) {
     this.path = path;
     this.database = database;
+    this.id = path.split("/").at(-1);
   }
 
   collection(name) {
@@ -171,6 +172,66 @@ class DuplicateFakeFirestore {
   }
 }
 
+class SuccessfulFakeFirestore {
+  constructor({legacyMenu = false} = {}) {
+    this.legacyMenu = legacyMenu;
+    this.reads = [];
+    this.writes = [];
+  }
+
+  collection(name) {
+    return new FakeCollection(name, this);
+  }
+
+  async runTransaction(callback) {
+    return callback({
+      get: async (target) => {
+        this.reads.push({path: target.path, filters: target.filters ?? []});
+        if (target.path === "shops/shop-1") {
+          return fakeSnapshot({exists: true, data: {isWebPublished: true}});
+        }
+        if (target.path === "menus/menu-1") {
+          return this.legacyMenu ?
+            fakeSnapshot() :
+            fakeSnapshot({
+              exists: true,
+              data: {
+                shopId: "shop-1",
+                name: "カット",
+                price: 5000,
+                duration: 45,
+              },
+            });
+        }
+        if (target.path === "menus" &&
+            target.filters.some(([field]) => field === "menuId")) {
+          return fakeSnapshot({
+            docs: [{
+              shopId: "shop-1",
+              name: "カット",
+              price: 5000,
+              duration: 45,
+            }],
+          });
+        }
+        return fakeSnapshot();
+      },
+      create: (reference, data) => {
+        this.writes.push({path: reference.path, data});
+      },
+    });
+  }
+}
+
+const validReservationRequest = {
+  shopId: "shop-1",
+  menuId: "menu-1",
+  customerName: "山田太郎",
+  customerPhone: "09012345678",
+  customerEmail: "customer@example.com",
+  reservationDateTimeMillis: 1781053200000,
+};
+
 test("builds a shop-scoped exact-start slot identifier", () => {
   const timestamp = {toMillis: () => 1781053200000};
   assert.equal(reservationSlotId(timestamp), "1781053200000");
@@ -179,12 +240,7 @@ test("builds a shop-scoped exact-start slot identifier", () => {
 test("rejects an existing reservation at the exact same time", async () => {
   await assert.rejects(
       createWebReservation(new DuplicateFakeFirestore(), {
-        shopId: "shop-1",
-        menuId: "menu-1",
-        customerName: "山田太郎",
-        customerPhone: "09012345678",
-        customerEmail: "customer@example.com",
-        reservationDateTimeMillis: 1781053200000,
+        ...validReservationRequest,
       }),
       (error) => {
         assert.equal(error.code, "already-exists");
@@ -192,4 +248,43 @@ test("rejects an existing reservation at the exact same time", async () => {
         return true;
       },
   );
+});
+
+test("creates reservation and slot without a composite menu query", async () => {
+  const firestore = new SuccessfulFakeFirestore();
+
+  const result = await createWebReservation(
+      firestore,
+      validReservationRequest,
+  );
+
+  assert.equal(result.reservationId, "generated-reservation-id");
+  assert.equal(firestore.writes.length, 2);
+  assert.equal(
+      firestore.writes[0].path,
+      "shops/shop-1/reservations/generated-reservation-id",
+  );
+  assert.equal(firestore.writes[0].data.source, "web");
+  assert.equal(firestore.writes[0].data.shopId, "shop-1");
+  assert.equal(firestore.writes[0].data.menuId, "menu-1");
+  assert.equal(
+      firestore.writes[1].path,
+      "shops/shop-1/reservationSlots/1781053200000",
+  );
+  assert.equal(
+      firestore.reads.some(({filters}) => filters.length > 1),
+      false,
+  );
+});
+
+test("supports a legacy menu document ID with a single-field query", async () => {
+  const firestore = new SuccessfulFakeFirestore({legacyMenu: true});
+
+  await createWebReservation(firestore, validReservationRequest);
+
+  const menuQueryRead = firestore.reads.find(
+      ({path, filters}) => path === "menus" && filters.length > 0,
+  );
+  assert.deepEqual(menuQueryRead.filters, [["menuId", "==", "menu-1"]]);
+  assert.equal(firestore.writes.length, 2);
 });
