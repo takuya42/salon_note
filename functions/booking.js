@@ -68,6 +68,10 @@ async function createWebReservation(db, input) {
   const shopRef = db.collection("shops").doc(shopId);
   const reservationsRef = shopRef.collection("reservations");
   const reservationRef = reservationsRef.doc();
+  const customersRef = shopRef.collection("customers");
+  const existingCustomerQuery = customersRef
+      .where("email", "==", customerEmail)
+      .limit(1);
   const slotRef = shopRef
       .collection("reservationSlots")
       .doc(reservationSlotId(reservationDateTime));
@@ -92,11 +96,13 @@ async function createWebReservation(db, input) {
         menuSnapshot,
         duplicateSnapshot,
         slotSnapshot,
+        customerSnapshot,
       ] = await Promise.all([
         transaction.get(shopRef),
         getMenuSnapshot(transaction, menusRef, menuId),
         transaction.get(duplicateQuery),
         transaction.get(slotRef),
+        transaction.get(existingCustomerQuery),
       ]);
 
       if (!shopSnapshot.exists || shopSnapshot.data()?.isWebPublished !== true) {
@@ -153,15 +159,37 @@ async function createWebReservation(db, input) {
         duration: menuDuration,
         createdAt: FieldValue.serverTimestamp(),
       };
+      const existingCustomer = customerSnapshot.empty ?
+        null : customerSnapshot.docs[0];
+      const customerData = {
+        name: customerName,
+        phone: customerPhone,
+        email: customerEmail,
+        updatedAt: FieldValue.serverTimestamp(),
+        source: "web",
+        lastVisitDate: reservationDateTime,
+        reservationCount: FieldValue.increment(1),
+        totalVisitCount: FieldValue.increment(1),
+      };
 
       logger.info("Writing web reservation transaction", {
         reservationPath: reservationRef.path,
         reservationData: reservation,
         reservationSlotPath: slotRef.path,
         reservationSlotData: reservationSlot,
+        customerPath: existingCustomer?.ref?.path ?? null,
+        isNewCustomer: existingCustomer == null,
       });
       transaction.create(reservationRef, reservation);
       transaction.create(slotRef, reservationSlot);
+      if (existingCustomer) {
+        transaction.update(existingCustomer.ref, customerData);
+      } else {
+        transaction.create(customersRef.doc(), {
+          ...customerData,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      }
     });
   } catch (error) {
     const code = firestoreErrorCode(error);

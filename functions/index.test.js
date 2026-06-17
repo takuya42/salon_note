@@ -141,7 +141,10 @@ function fakeSnapshot({exists = false, data, docs = []} = {}) {
     exists,
     empty: docs.length === 0,
     data: () => data,
-    docs: docs.map((value) => ({data: () => value})),
+    docs: docs.map((value) => ({
+      data: () => value.data ?? value,
+      ref: value.ref,
+    })),
   };
 }
 
@@ -173,8 +176,9 @@ class DuplicateFakeFirestore {
 }
 
 class SuccessfulFakeFirestore {
-  constructor({legacyMenu = false} = {}) {
+  constructor({legacyMenu = false, existingCustomer = false} = {}) {
     this.legacyMenu = legacyMenu;
+    this.existingCustomer = existingCustomer;
     this.reads = [];
     this.writes = [];
   }
@@ -214,10 +218,30 @@ class SuccessfulFakeFirestore {
             }],
           });
         }
+        if (target.path === "shops/shop-1/customers") {
+          return this.existingCustomer ?
+            fakeSnapshot({
+              docs: [{
+                data: {
+                  name: "旧顧客",
+                  email: "customer@example.com",
+                  phone: "000",
+                },
+                ref: new FakeReference(
+                    "shops/shop-1/customers/existing-customer-id",
+                    this,
+                ),
+              }],
+            }) :
+            fakeSnapshot();
+        }
         return fakeSnapshot();
       },
       create: (reference, data) => {
         this.writes.push({path: reference.path, data});
+      },
+      update: (reference, data) => {
+        this.writes.push({path: reference.path, data, type: "update"});
       },
     });
   }
@@ -259,7 +283,7 @@ test("creates reservation and slot without a composite menu query", async () => 
   );
 
   assert.equal(result.reservationId, "generated-reservation-id");
-  assert.equal(firestore.writes.length, 2);
+  assert.equal(firestore.writes.length, 3);
   assert.equal(
       firestore.writes[0].path,
       "shops/shop-1/reservations/generated-reservation-id",
@@ -271,6 +295,19 @@ test("creates reservation and slot without a composite menu query", async () => 
       firestore.writes[1].path,
       "shops/shop-1/reservationSlots/1781053200000",
   );
+  assert.equal(
+      firestore.writes[2].path,
+      "shops/shop-1/customers/generated-reservation-id",
+  );
+  assert.equal(firestore.writes[2].data.name, "山田太郎");
+  assert.equal(firestore.writes[2].data.phone, "09012345678");
+  assert.equal(firestore.writes[2].data.email, "customer@example.com");
+  assert.equal(firestore.writes[2].data.source, "web");
+  assert.equal(firestore.writes[2].data.lastVisitDate.toMillis(), 1781053200000);
+  assert.ok(firestore.writes[2].data.createdAt);
+  assert.ok(firestore.writes[2].data.updatedAt);
+  assert.ok(firestore.writes[2].data.reservationCount);
+  assert.ok(firestore.writes[2].data.totalVisitCount);
   assert.equal(
       firestore.reads.some(({filters}) => filters.length > 1),
       false,
@@ -286,5 +323,33 @@ test("supports a legacy menu document ID with a single-field query", async () =>
       ({path, filters}) => path === "menus" && filters.length > 0,
   );
   assert.deepEqual(menuQueryRead.filters, [["menuId", "==", "menu-1"]]);
-  assert.equal(firestore.writes.length, 2);
+  assert.equal(firestore.writes.length, 3);
+});
+
+test("updates an existing customer matched by email", async () => {
+  const firestore = new SuccessfulFakeFirestore({existingCustomer: true});
+
+  await createWebReservation(firestore, validReservationRequest);
+
+  const customerQueryRead = firestore.reads.find(
+      ({path, filters}) => path === "shops/shop-1/customers" &&
+        filters.length > 0,
+  );
+  assert.deepEqual(customerQueryRead.filters, [
+    ["email", "==", "customer@example.com"],
+  ]);
+
+  const customerWrite = firestore.writes.find(
+      ({path}) => path === "shops/shop-1/customers/existing-customer-id",
+  );
+  assert.equal(customerWrite.type, "update");
+  assert.equal(customerWrite.data.name, "山田太郎");
+  assert.equal(customerWrite.data.phone, "09012345678");
+  assert.equal(customerWrite.data.email, "customer@example.com");
+  assert.equal(customerWrite.data.source, "web");
+  assert.equal(customerWrite.data.lastVisitDate.toMillis(), 1781053200000);
+  assert.equal(customerWrite.data.createdAt, undefined);
+  assert.ok(customerWrite.data.updatedAt);
+  assert.ok(customerWrite.data.reservationCount);
+  assert.ok(customerWrite.data.totalVisitCount);
 });
