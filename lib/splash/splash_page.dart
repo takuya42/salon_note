@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/pages/auth_gate.dart';
-import '../onboarding/pages/onboarding_page.dart';
-import '../onboarding/providers/onboarding_provider.dart';
 import '../services/force_update_service.dart';
 
 class SplashPage extends ConsumerStatefulWidget {
@@ -67,13 +65,10 @@ class _SplashPageState extends ConsumerState<SplashPage>
     await minimumDelay;
     if (!mounted) return;
 
-    final completed = ref.read(onboardingCompletedProvider);
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, animation, __) => completed
-            ? const AuthGate()
-            : const OnboardingPage(),
+        pageBuilder: (_, animation, __) => const AuthGate(),
         transitionsBuilder: (_, animation, __, child) => FadeTransition(
           opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
           child: child,

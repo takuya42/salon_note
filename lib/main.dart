@@ -64,8 +64,6 @@ void main() {
         ),
       );
     }
-    await sharedPreferences.remove('onboarding_completed');
-
     runApp(
       ProviderScope(
         overrides: [
