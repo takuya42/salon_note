@@ -5,7 +5,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../auth/pages/auth_gate.dart';
 import '../providers/onboarding_provider.dart';
 
 const _ink = Color(0xFF6E5246);
@@ -31,12 +30,10 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     );
   }
 
-  Future<void> _openAuthGate() async {
+  Future<void> _completeOnboarding() async {
     await ref.read(onboardingCompletedProvider.notifier).complete();
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      CupertinoPageRoute<void>(builder: (_) => const AuthGate()),
-    );
+    Navigator.of(context).pushReplacementNamed('/');
   }
 
   @override
@@ -119,7 +116,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                     demo: const _WebBookingDemo(),
                     onNext: _next,
                   ),
-                  _StartPage(onStart: _openAuthGate),
+                  _StartPage(onStart: _completeOnboarding),
                 ],
               ),
             ),
